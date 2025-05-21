@@ -1,0 +1,52 @@
+- name: route1 test
+  fixtures:
+    - dataset
+  steps:
+    - name: get users
+      request:
+        method: GET
+        path: /users
+      response:
+        status: 200
+        json: |
+          {
+            "users": [
+              {"id": 1, "name": "User1"},
+              {"id": 2, "name": "User2"}
+            ]
+          }
+    - name: add user
+      request:
+        method: POST
+        path: /users/add
+        headers:
+          Content-Type: application/json
+        body: {"name":"Joseph"}
+      response:
+        status: 200
+      dbChecks:
+        - query: SELECT COUNT(*) AS count FROM users
+          result: |
+            [{"count": 3}]
+        - query: SELECT id, name FROM users ORDER BY id
+          result:
+            - id: 1
+              name: "User1"
+            - id: 2
+              name: "User2"
+            - id: 3
+              name: "Joseph"
+    - name: get users again
+      request:
+        method: GET
+        path: /users
+      response:
+        status: 200
+        json: |
+          {
+            "users": [
+              {"id": 1, "name": "User1"},
+              {"id": 2, "name": "User2"},
+              {"id": 3, "name": "Joseph"}
+            ]
+          }
