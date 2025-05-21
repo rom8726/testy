@@ -21,24 +21,32 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) {
 	t.Run(tc.Name, func(t *testing.T) {
 		loadFixtures(t, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
 
-		if cfg.BeforeReq != nil {
-			if err := cfg.BeforeReq(); err != nil {
-				t.Fatalf("beforeReq failed: %v", err)
-			}
+		for _, step := range tc.Steps {
+			performStep(t, handler, step, cfg)
 		}
-
-		rec := performRequest(t, tc, handler)
-
-		if cfg.AfterReq != nil {
-			if err := cfg.AfterReq(); err != nil {
-				t.Fatalf("afterReq failed: %v", err)
-			}
-		}
-
-		assertResponse(t, rec, tc.Response)
-
-		performDBChecks(t, cfg.ConnStr, tc)
 	})
+}
+
+func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config) {
+	t.Helper()
+
+	if cfg.BeforeReq != nil {
+		if err := cfg.BeforeReq(); err != nil {
+			t.Fatalf("beforeReq failed for step %q: %v", step.Name, err)
+		}
+	}
+
+	rec := performRequest(t, step, handler)
+
+	if cfg.AfterReq != nil {
+		if err := cfg.AfterReq(); err != nil {
+			t.Fatalf("afterReq failed for step %q: %v", step.Name, err)
+		}
+	}
+
+	assertResponse(t, rec, step.Response)
+
+	performDBChecks(t, cfg.ConnStr, step)
 }
 
 func loadFixtures(t *testing.T, connStr, fixturesDir string, fixtures []string) {
@@ -68,17 +76,17 @@ func loadFixture(t *testing.T, connStr, fixturePath string) {
 	}
 }
 
-func performRequest(t *testing.T, tc TestCase, handler http.Handler) *httptest.ResponseRecorder {
+func performRequest(t *testing.T, step Step, handler http.Handler) *httptest.ResponseRecorder {
 	t.Helper()
 
 	var body io.Reader
-	if tc.Request.Body != nil {
-		b, _ := json.Marshal(tc.Request.Body)
+	if step.Request.Body != nil {
+		b, _ := json.Marshal(step.Request.Body)
 		body = bytes.NewReader(b)
 	}
 
-	req := httptest.NewRequest(tc.Request.Method, tc.Request.Path, body)
-	for k, v := range tc.Request.Headers {
+	req := httptest.NewRequest(step.Request.Method, step.Request.Path, body)
+	for k, v := range step.Request.Headers {
 		req.Header.Set(k, v)
 	}
 
@@ -107,7 +115,7 @@ func assertResponse(
 	}
 }
 
-func performDBChecks(t *testing.T, connStr string, tc TestCase) {
+func performDBChecks(t *testing.T, connStr string, step Step) {
 	t.Helper()
 
 	db, err := sql.Open("postgres", connStr)
@@ -116,12 +124,12 @@ func performDBChecks(t *testing.T, connStr string, tc TestCase) {
 	}
 	defer db.Close()
 
-	for i, check := range tc.DBChecks {
-		performDBCheck(t, db, i, check)
+	for _, check := range step.DBChecks {
+		performDBCheck(t, db, check)
 	}
 }
 
-func performDBCheck(t *testing.T, db *sql.DB, idx int, check DBCheck) {
+func performDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 	t.Helper()
 
 	rows, err := db.QueryContext(t.Context(), check.Query)

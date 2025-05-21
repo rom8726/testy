@@ -1,8 +1,13 @@
 package internal
 
 type TestCase struct {
+	Name     string   `yaml:"name"`
+	Fixtures []string `yaml:"fixtures,omitempty"`
+	Steps    []Step   `yaml:"steps"`
+}
+
+type Step struct {
 	Name     string       `yaml:"name"`
-	Fixtures []string     `yaml:"fixtures,omitempty"`
 	Request  RequestSpec  `yaml:"request"`
 	Response ResponseSpec `yaml:"response"`
 	DBChecks []DBCheck    `yaml:"dbChecks"`
