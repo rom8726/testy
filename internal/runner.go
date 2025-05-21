@@ -1,4 +1,4 @@
-package runner
+package internal
 
 import (
 	"bytes"
@@ -9,11 +9,9 @@ import (
 	"testing"
 
 	"github.com/kinbiko/jsonassert"
-
-	"github.com/rom8726/testy/types"
 )
 
-func RunSingle(t *testing.T, handler http.Handler, tc types.TestCase) {
+func RunSingle(t *testing.T, handler http.Handler, tc TestCase) {
 	t.Run(tc.Name, func(t *testing.T) {
 		var body io.Reader
 		if tc.Request.Body != nil {
@@ -37,7 +35,7 @@ func assertResponse(
 	t *testing.T,
 	resp *http.Response,
 	respRecorder *httptest.ResponseRecorder,
-	expected types.ResponseSpec,
+	expected ResponseSpec,
 ) {
 	if resp.StatusCode != expected.Status {
 		t.Fatalf("unexpected status: got %d, want %d", resp.StatusCode, expected.Status)

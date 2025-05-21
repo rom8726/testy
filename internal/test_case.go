@@ -1,4 +1,4 @@
-package types
+package internal
 
 type TestCase struct {
 	Name     string       `yaml:"name"`

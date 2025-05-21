@@ -4,17 +4,16 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/rom8726/testy/loader"
-	"github.com/rom8726/testy/runner"
+	"github.com/rom8726/testy/internal"
 )
 
 func Run(t *testing.T, handler http.Handler, testsDir string) {
-	cases, err := loader.LoadTestCases(testsDir)
+	cases, err := internal.LoadTestCases(testsDir)
 	if err != nil {
 		t.Fatalf("cannot load test cases: %v", err)
 	}
 
 	for _, tc := range cases {
-		runner.RunSingle(t, handler, tc)
+		internal.RunSingle(t, handler, tc)
 	}
 }
