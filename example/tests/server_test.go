@@ -1,16 +1,17 @@
-package testyexample
+package tests
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/rom8726/testy"
+	"testyexample"
 )
 
 func TestServer(t *testing.T) {
 	connStr := "postgresql://user:password@localhost:5432/db?sslmode=disable"
 
-	srv := NewServer(connStr)
+	srv := testyexample.NewServer(connStr)
 
 	cfg := testy.Config{
 		Handler:     srv.Router,
