@@ -20,8 +20,23 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) {
 
 	t.Run(tc.Name, func(t *testing.T) {
 		loadFixtures(t, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
+
+		if cfg.BeforeReq != nil {
+			if err := cfg.BeforeReq(); err != nil {
+				t.Fatalf("beforeReq failed: %v", err)
+			}
+		}
+
 		rec := performRequest(t, tc, handler)
+
+		if cfg.AfterReq != nil {
+			if err := cfg.AfterReq(); err != nil {
+				t.Fatalf("afterReq failed: %v", err)
+			}
+		}
+
 		assertResponse(t, rec, tc.Response)
+
 		performDBChecks(t, cfg.ConnStr, tc)
 	})
 }
