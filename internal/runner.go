@@ -15,14 +15,18 @@ import (
 )
 
 func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) {
+	t.Helper()
+
 	t.Run(tc.Name, func(t *testing.T) {
 		loadFixtures(t, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
-		rec := performRequest(tc, handler)
+		rec := performRequest(t, tc, handler)
 		assertResponse(t, rec, tc.Response)
 	})
 }
 
 func loadFixtures(t *testing.T, connStr, fixturesDir string, fixtures []string) {
+	t.Helper()
+
 	for _, fixtureName := range fixtures {
 		fixtureName += ".yml"
 		fixturePath := filepath.Join(fixturesDir, fixtureName)
@@ -31,6 +35,8 @@ func loadFixtures(t *testing.T, connStr, fixturesDir string, fixtures []string) 
 }
 
 func loadFixture(t *testing.T, connStr, fixturePath string) {
+	t.Helper()
+
 	cfg := &pgfixtures.Config{
 		FilePath: fixturePath,
 		ConnStr:  connStr,
@@ -45,7 +51,9 @@ func loadFixture(t *testing.T, connStr, fixturePath string) {
 	}
 }
 
-func performRequest(tc TestCase, handler http.Handler) *httptest.ResponseRecorder {
+func performRequest(t *testing.T, tc TestCase, handler http.Handler) *httptest.ResponseRecorder {
+	t.Helper()
+
 	var body io.Reader
 	if tc.Request.Body != nil {
 		b, _ := json.Marshal(tc.Request.Body)
@@ -68,6 +76,8 @@ func assertResponse(
 	respRecorder *httptest.ResponseRecorder,
 	expected ResponseSpec,
 ) {
+	t.Helper()
+
 	if respRecorder.Result().StatusCode != expected.Status {
 		t.Fatalf("unexpected status: got %d, want %d", respRecorder.Result().StatusCode, expected.Status)
 	}

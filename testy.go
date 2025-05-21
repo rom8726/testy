@@ -15,6 +15,8 @@ type Config struct {
 }
 
 func Run(t *testing.T, cfg *Config) {
+	t.Helper()
+
 	cases, err := internal.LoadTestCases(cfg.CasesDir)
 	if err != nil {
 		t.Fatalf("cannot load test cases: %v", err)
