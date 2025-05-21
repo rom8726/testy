@@ -1,0 +1,13 @@
+- name: auth failed
+  fixtures:
+    - dataset
+  steps:
+    - name: auth
+      request:
+        method: POST
+        path: /auth
+        headers:
+          Content-Type: application/json
+        body: {"username":"user", "password":"wrong_password"}
+      response:
+        status: 401

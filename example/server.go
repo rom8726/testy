@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -16,6 +17,40 @@ type Server struct {
 
 func NewServer(connStr string) *Server {
 	router := httprouter.New()
+
+	authKeys := map[string]struct{}{}
+
+	router.POST("/auth", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
+		type authRequest struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
+		var req authRequest
+		if err := json.NewDecoder(request.Body).Decode(&req); err != nil {
+			writer.WriteHeader(http.StatusBadRequest)
+			fmt.Println(err)
+
+			return
+		}
+
+		if req.Username != "user" || req.Password != "password" {
+			writer.WriteHeader(http.StatusUnauthorized)
+
+			return
+		}
+
+		authKey := uuid.NewString()
+		authKeys[authKey] = struct{}{}
+
+		type response struct {
+			Token string `json:"token"`
+		}
+		resp := response{Token: authKey}
+		_ = json.NewEncoder(writer).Encode(resp)
+
+		return
+	})
+
 	router.POST("/users/add", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -23,6 +58,13 @@ func NewServer(connStr string) *Server {
 				fmt.Println(r)
 			}
 		}()
+
+		token := request.Header.Get("Authorization")
+		if _, ok := authKeys[token]; !ok {
+			writer.WriteHeader(http.StatusUnauthorized)
+
+			return
+		}
 
 		db, err := sql.Open("postgres", connStr)
 		if err != nil {
@@ -63,6 +105,13 @@ func NewServer(connStr string) *Server {
 			}
 		}()
 
+		token := request.Header.Get("Authorization")
+		if _, ok := authKeys[token]; !ok {
+			writer.WriteHeader(http.StatusUnauthorized)
+
+			return
+		}
+
 		db, err := sql.Open("postgres", connStr)
 		if err != nil {
 			panic(err)
@@ -97,6 +146,47 @@ func NewServer(connStr string) *Server {
 
 		writer.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(writer).Encode(targetResp)
+
+		return
+	})
+
+	router.GET("/user/:user_id", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
+		defer func() {
+			if r := recover(); r != nil {
+				writer.WriteHeader(http.StatusInternalServerError)
+				fmt.Println(r)
+			}
+		}()
+
+		token := request.Header.Get("Authorization")
+		if _, ok := authKeys[token]; !ok {
+			writer.WriteHeader(http.StatusUnauthorized)
+
+			return
+		}
+
+		db, err := sql.Open("postgres", connStr)
+		if err != nil {
+			panic(err)
+		}
+		defer db.Close()
+
+		const query = `SELECT id, name FROM users WHERE id = $1 LIMIT 1`
+		var userID int
+		var userName string
+		err = db.QueryRowContext(request.Context(), query, params.ByName("user_id")).Scan(&userID, &userName)
+		if err != nil {
+			panic(err)
+		}
+
+		type userResponse struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		}
+		resp := userResponse{ID: userID, Name: userName}
+
+		writer.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(writer).Encode(resp)
 
 		return
 	})

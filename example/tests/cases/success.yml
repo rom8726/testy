@@ -1,11 +1,22 @@
-- name: route1 test
+- name: success test
   fixtures:
     - dataset
   steps:
-    - name: get users
+    - name: auth
+      request:
+        method: POST
+        path: /auth
+        headers:
+          Content-Type: application/json
+        body: {"username":"user", "password":"password"}
+      response:
+        status: 200
+    - name: get_users
       request:
         method: GET
         path: /users
+        headers:
+          Authorization: '{{auth.response.token}}'
       response:
         status: 200
         json: |
@@ -15,12 +26,13 @@
               {"id": 2, "name": "User2"}
             ]
           }
-    - name: add user
+    - name: add_user
       request:
         method: POST
         path: /users/add
         headers:
           Content-Type: application/json
+          Authorization: '{{auth.response.token}}'
         body: {"name":"Joseph"}
       response:
         status: 200
@@ -36,10 +48,12 @@
               name: "User2"
             - id: 3
               name: "Joseph"
-    - name: get users again
+    - name: get_users_again
       request:
         method: GET
         path: /users
+        headers:
+          Authorization: '{{auth.response.token}}'
       response:
         status: 200
         json: |
@@ -50,3 +64,17 @@
               {"id": 3, "name": "Joseph"}
             ]
           }
+    - name: get_joseph
+      request:
+        method: GET
+        path: /user/{{get_users_again.response.users[2].id}}
+        headers:
+          Authorization: '{{auth.response.token}}'
+      response:
+        status: 200
+        json: '{"id": 3, "name": "Joseph"}'
+      dbChecks:
+        - query: SELECT id, name FROM users WHERE id = {{get_users_again.response.users[2].id}}
+          result:
+            - id: 3
+              name: "Joseph"

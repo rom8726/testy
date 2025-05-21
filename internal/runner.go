@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/kinbiko/jsonassert"
@@ -21,13 +22,16 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) {
 	t.Run(tc.Name, func(t *testing.T) {
 		loadFixtures(t, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
 
+		ctxMap := initCtxMap()
 		for _, step := range tc.Steps {
-			performStep(t, handler, step, cfg)
+			step.Name = strings.ReplaceAll(step.Name, " ", "_")
+
+			performStep(t, handler, step, cfg, ctxMap)
 		}
 	})
 }
 
-func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config) {
+func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctxMap map[string]any) {
 	t.Helper()
 
 	if cfg.BeforeReq != nil {
@@ -36,7 +40,7 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config) {
 		}
 	}
 
-	rec := performRequest(t, step, handler)
+	rec := performRequest(t, step, handler, ctxMap)
 
 	if cfg.AfterReq != nil {
 		if err := cfg.AfterReq(); err != nil {
@@ -44,9 +48,17 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config) {
 		}
 	}
 
+	if respBody := rec.Body.Bytes(); len(respBody) > 0 {
+		var jsonData any
+		if err := json.Unmarshal(respBody, &jsonData); err != nil {
+			t.Fatalf("invalid JSON: %v", err)
+		}
+		extractJSONFields(step.Name+".response", jsonData, ctxMap)
+	}
+
 	assertResponse(t, rec, step.Response)
 
-	performDBChecks(t, cfg.ConnStr, step)
+	performDBChecks(t, cfg.ConnStr, step, ctxMap)
 }
 
 func loadFixtures(t *testing.T, connStr, fixturesDir string, fixtures []string) {
@@ -76,8 +88,10 @@ func loadFixture(t *testing.T, connStr, fixturePath string) {
 	}
 }
 
-func performRequest(t *testing.T, step Step, handler http.Handler) *httptest.ResponseRecorder {
+func performRequest(t *testing.T, step Step, handler http.Handler, ctxMap map[string]any) *httptest.ResponseRecorder {
 	t.Helper()
+
+	step.Request = renderRequest(step.Request, ctxMap)
 
 	var body io.Reader
 	if step.Request.Body != nil {
@@ -115,7 +129,7 @@ func assertResponse(
 	}
 }
 
-func performDBChecks(t *testing.T, connStr string, step Step) {
+func performDBChecks(t *testing.T, connStr string, step Step, ctxMap map[string]any) {
 	t.Helper()
 
 	db, err := sql.Open("postgres", connStr)
@@ -125,6 +139,7 @@ func performDBChecks(t *testing.T, connStr string, step Step) {
 	defer db.Close()
 
 	for _, check := range step.DBChecks {
+		check = renderDBCheck(check, ctxMap)
 		performDBCheck(t, db, check)
 	}
 }
