@@ -5,6 +5,7 @@ type TestCase struct {
 	Fixtures []string     `yaml:"fixtures,omitempty"`
 	Request  RequestSpec  `yaml:"request"`
 	Response ResponseSpec `yaml:"response"`
+	DBChecks []DBCheck    `yaml:"dbChecks"`
 }
 
 type RequestSpec struct {
@@ -17,4 +18,9 @@ type RequestSpec struct {
 type ResponseSpec struct {
 	Status int    `yaml:"status"`
 	JSON   string `yaml:"json"`
+}
+
+type DBCheck struct {
+	Query  string `yaml:"query"`
+	Result any    `yaml:"result"`
 }

@@ -2,7 +2,7 @@ package internal
 
 import (
 	"bytes"
-	"context"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/kinbiko/jsonassert"
+	_ "github.com/lib/pq"
 	"github.com/rom8726/pgfixtures"
 )
 
@@ -21,6 +22,7 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) {
 		loadFixtures(t, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
 		rec := performRequest(t, tc, handler)
 		assertResponse(t, rec, tc.Response)
+		performDBChecks(t, cfg.ConnStr, tc)
 	})
 }
 
@@ -45,7 +47,7 @@ func loadFixture(t *testing.T, connStr, fixturePath string) {
 		DryRun:   false,
 	}
 
-	err := pgfixtures.Load(context.Background(), cfg)
+	err := pgfixtures.Load(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("load fixture %s: %v", fixturePath, err)
 	}
@@ -86,6 +88,68 @@ func assertResponse(
 
 	if expected.JSON != "" {
 		ja := jsonassert.New(t)
-		ja.Assertf(body, expected.JSON)
+		ja.Assert(body, expected.JSON)
 	}
+}
+
+func performDBChecks(t *testing.T, connStr string, tc TestCase) {
+	t.Helper()
+
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		t.Fatalf("cannot open db: %v", err)
+	}
+	defer db.Close()
+
+	for i, check := range tc.DBChecks {
+		performDBCheck(t, db, i, check)
+	}
+}
+
+func performDBCheck(t *testing.T, db *sql.DB, idx int, check DBCheck) {
+	t.Helper()
+
+	rows, err := db.QueryContext(t.Context(), check.Query)
+	if err != nil {
+		t.Fatalf("dbCheck failed for query %q: %v", check.Query, err)
+	}
+	defer rows.Close()
+
+	cols, _ := rows.Columns()
+	results := make([]map[string]any, 0)
+
+	for rows.Next() {
+		row := make([]any, len(cols))
+		ptrs := make([]any, len(cols))
+		for i := range ptrs {
+			ptrs[i] = &row[i]
+		}
+		if err := rows.Scan(ptrs...); err != nil {
+			t.Fatalf("scan error: %v", err)
+		}
+
+		m := make(map[string]any)
+		for i, col := range cols {
+			m[col] = row[i]
+		}
+
+		results = append(results, m)
+	}
+
+	actual, _ := json.Marshal(results)
+
+	var expectedJSON string
+	switch v := check.Result.(type) {
+	case string:
+		expectedJSON = v
+	default:
+		buf, err := json.Marshal(v)
+		if err != nil {
+			t.Fatalf("cannot marshal expected dbCheck result: %v", err)
+		}
+		expectedJSON = string(buf)
+	}
+
+	ja := jsonassert.New(t)
+	ja.Assert(string(actual), expectedJSON)
 }
