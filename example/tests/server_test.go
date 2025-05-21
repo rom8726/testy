@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/rom8726/testy"
+
 	"testyexample"
 )
 
@@ -15,8 +16,8 @@ func TestServer(t *testing.T) {
 
 	cfg := testy.Config{
 		Handler:     srv.Router,
-		CasesDir:    "tests/cases",
-		FixturesDir: "tests/fixtures",
+		CasesDir:    "./cases",
+		FixturesDir: "./fixtures",
 		ConnStr:     connStr,
 		BeforeReq: func() error {
 			fmt.Println("before request")

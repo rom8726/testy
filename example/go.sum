@@ -78,8 +78,8 @@ github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c h1:ncq/mPwQF
 github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c/go.mod h1:OmDBASR4679mdNQnz2pUhc2G8CO2JrUAVFDRBDP/hJE=
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
-github.com/rom8726/pgfixtures v1.1.2 h1:BHAdnefuSysVK1kNAIYWML8IzkMe8w72ZEQIHJIuEx8=
-github.com/rom8726/pgfixtures v1.1.2/go.mod h1:ThCBcDZodmzFJuq48lAlSdUrQi0gizWJAMwXEVW9M9I=
+github.com/rom8726/pgfixtures v1.1.5 h1:6jDXVyNPwprIHaq4O8ALbHbbpXAPaamm1KwjjcSojEg=
+github.com/rom8726/pgfixtures v1.1.5/go.mod h1:ThCBcDZodmzFJuq48lAlSdUrQi0gizWJAMwXEVW9M9I=
 github.com/shirou/gopsutil/v4 v4.25.1 h1:QSWkTc+fu9LTAWfkZwZ6j8MSUk4A2LV7rbH0ZqmLjXs=
 github.com/shirou/gopsutil/v4 v4.25.1/go.mod h1:RoUCUpndaJFtT+2zsZzzmhvbfGoDCJ7nFXKJf8GqJbI=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=

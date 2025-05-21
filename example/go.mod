@@ -10,7 +10,7 @@ require (
 require (
 	github.com/kinbiko/jsonassert v1.2.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
-	github.com/rom8726/pgfixtures v1.1.2 // indirect
+	github.com/rom8726/pgfixtures v1.1.5 // indirect
 )
 
 require (
