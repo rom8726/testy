@@ -12,6 +12,15 @@ Only PostgreSQL is supported.
 
 ---
 
+## Why another testing tool?
+
+* Write tests in plain YAML — easy for both developers and QA.
+* Works with *any* `http.Handler` — net/http, Gin, Chi, Echo, ...
+* Context-aware templating (response + env) out of the box.
+* Uses libraries for JSON assertions and data fixtures.
+
+---
+
 ## Installation
 ```bash
 go get github.com/rom8726/testy@latest
@@ -184,15 +193,6 @@ The framework only needs:
         - query:  SQL string       # placeholders {{...}} allowed
           result: JSON|YAML        # expected rows as JSON array
 ```
-
----
-
-## Why another testing tool?
-
-* Write tests in plain YAML — easy for both developers and QA.
-* Works with *any* `http.Handler` — net/http, Gin, Chi, Echo, ...
-* Context-aware templating (response + env) out of the box.
-* Uses proven libraries for JSON assertions and data fixtures.
 
 ---
 
