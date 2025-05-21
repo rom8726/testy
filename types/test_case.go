@@ -14,6 +14,6 @@ type RequestSpec struct {
 }
 
 type ResponseSpec struct {
-	Status int            `yaml:"status"`
-	JSON   map[string]any `yaml:"json"`
+	Status int    `yaml:"status"`
+	JSON   string `yaml:"json"`
 }

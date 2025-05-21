@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/kinbiko/jsonassert"
 
 	"github.com/rom8726/testy/types"
 )
@@ -29,17 +29,24 @@ func RunSingle(t *testing.T, handler http.Handler, tc types.TestCase) {
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
-		assert.Equal(t, tc.Response.Status, rec.Code)
-
-		if tc.Response.JSON != nil {
-			var actual map[string]any
-			if err := json.Unmarshal(rec.Body.Bytes(), &actual); err != nil {
-				t.Fatalf("invalid JSON response: %v", err)
-			}
-
-			for k, v := range tc.Response.JSON {
-				assert.Equal(t, v, actual[k], "mismatch on key '%s'", k)
-			}
-		}
+		assertResponse(t, rec.Result(), rec, tc.Response)
 	})
+}
+
+func assertResponse(
+	t *testing.T,
+	resp *http.Response,
+	respRecorder *httptest.ResponseRecorder,
+	expected types.ResponseSpec,
+) {
+	if resp.StatusCode != expected.Status {
+		t.Fatalf("unexpected status: got %d, want %d", resp.StatusCode, expected.Status)
+	}
+
+	body := respRecorder.Body.String()
+
+	if expected.JSON != "" {
+		ja := jsonassert.New(t)
+		ja.Assertf(body, expected.JSON)
+	}
 }

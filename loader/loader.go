@@ -10,7 +10,7 @@ import (
 )
 
 func LoadTestCases(dir string) ([]types.TestCase, error) {
-	files, err := filepath.Glob(filepath.Join(dir, "*.yaml"))
+	files, err := filepath.Glob(filepath.Join(dir, "*.yml"))
 	if err != nil {
 		return nil, err
 	}
