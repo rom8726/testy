@@ -7,13 +7,25 @@ import (
 	"github.com/rom8726/testy/internal"
 )
 
-func Run(t *testing.T, handler http.Handler, testsDir string) {
-	cases, err := internal.LoadTestCases(testsDir)
+type Config struct {
+	Handler     http.Handler
+	CasesDir    string
+	FixturesDir string
+	ConnStr     string
+}
+
+func Run(t *testing.T, cfg *Config) {
+	cases, err := internal.LoadTestCases(cfg.CasesDir)
 	if err != nil {
 		t.Fatalf("cannot load test cases: %v", err)
 	}
 
 	for _, tc := range cases {
-		internal.RunSingle(t, handler, tc)
+		cfgInternal := internal.Config{
+			ConnStr:     cfg.ConnStr,
+			FixturesDir: cfg.FixturesDir,
+		}
+
+		internal.RunSingle(t, cfg.Handler, tc, &cfgInternal)
 	}
 }
