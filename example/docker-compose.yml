@@ -12,3 +12,5 @@ services:
       PGDATA: /var/lib/postgresql/data/main
     ports:
       - "5432:5432"
+    volumes:
+      - ./migration.sql:/docker-entrypoint-initdb.d/000_migration.sql:ro
