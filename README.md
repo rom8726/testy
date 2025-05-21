@@ -1,12 +1,12 @@
 # testy
 
-A tiny functional-testing framework for HTTP handlers written in Go.  
+A tiny functional-testing framework for HTTP handlers written in Go.
 It lets you describe end-to-end scenarios in YAML, automatically:
 
 * runs the request against the given `http.Handler`
 * asserts the HTTP response (status code + JSON body)
 * loads database fixtures before the scenario
-* performs SQL checks after each step
+* executes SQL checks after each step
 
 Only PostgreSQL is supported.
 
@@ -24,51 +24,78 @@ Add the package under test (your web-application) to `go.mod` as usual.
 ## Quick example
 
 Directory layout:
+
 ```
 /project
- ├─ api/           # your application code
+ ├─ api/                 # your application code
  ├─ tests/
- │   ├─ cases/     # *.yml files with scenarios
- │   └─ fixtures/  # *.yml fixtures for pgfixtures
- └─── api_test.go  # Go test that calls testy.Run
+ │   ├─ cases/           # *.yml files with scenarios
+ │   ├─ fixtures/        # *.yml fixtures for pgfixtures
+ └── api_test.go         # Go test that calls testy.Run
 ```
-### 1. YAML test case (`tests/cases/user_get.yml`)
+### 1. Multi-step YAML case (`tests/cases/user_flow.yml`)
 ```yaml
-- name: GET /users/:id
+- name: end-to-end user flow
   fixtures:
-   - users          # loads tests/fixtures/users.yml
+    - users
+
   steps:
-    - name: happy path
+    - name: create_user
+      request:
+        method: POST
+        path:   /users
+        body:
+          name:  "Alice"
+          email: "alice@example.com"
+      response:
+        status: 201
+        json: |
+          {
+            "id":        "<<PRESENCE>>",
+            "name":      "Alice",
+            "email":     "alice@example.com"
+          }
+
+    - name: get user
       request:
         method: GET
-        path:  /users/42
+        path:   /users/{{create_user.response.id}}     # pulls "id" from the previous response
       response:
         status: 200
         json: |
           {
-            "id":        42,
-            "name":      "John Doe",
-            "email":     "<<PRESENCE>>"
+            "id":   "{{create_user.response.id}}",
+            "name": "Alice"
           }
+
+    - name: update email
+      request:
+        method: PATCH
+        path:   /users/{{create_user.response.id}}
+        headers:
+          X-Request-Id: "{{UUID}}"            # env-var substitution
+        body:
+          email: "alice+new@example.com"
+      response:
+        status: 204
       dbChecks:
-        - query:  SELECT COUNT(*) AS cnt FROM users WHERE id = 42
-          result: '[{ "cnt": 1 }]'
+        - query:  SELECT email FROM users WHERE id = {{create_user.response.id}}
+          result: '[{ "email":"alice+new@example.com" }]'
 ```
 
-### 2. Fixture (`tests/fixtures/users.yml`)
-```yaml
-users:
-  - id: 42
-    name: John Doe
-    email: john@example.com
-```
+How the placeholders work:
 
-### 3. Go test (`tests/api_test.go`)
+* `{{<step name>.response.<json path>}}` — value from a previous response.
+  The JSON path uses dots for objects and `[index]` for arrays (`items[0].id`).
+* `{{ENV_VAR}}` — replaced with the value of an environment variable available at test run-time.
+
+Placeholders are resolved in the request URL, headers and body, as well as inside `dbChecks.query`.
+
+### 2. Go test (`tests/api_test.go`)
 ```go
 package project_test
 
 import (
-  "net/http"
   "os"
   "testing"
 
@@ -77,7 +104,7 @@ import (
 )
 
 func TestAPI(t *testing.T) {
-  connStr := os.Getenv("TEST_DB") // e.g. "postgres://user:pass@localhost:5432/app_test?sslmode=disable"
+  connStr := os.Getenv("TEST_DB") // postgres://user:password@localhost:5432/db?sslmode=disable
 
   testy.Run(t, &testy.Config{
     Handler:     api.Router(),    // your http.Handler
@@ -98,25 +125,22 @@ go test ./...
 ## Features
 
 ### Declarative scenarios
-
-* Compose any number of **steps** inside a scenario.
-* Each step may:
-    * send any HTTP method, path, headers and JSON body
-    * assert status code
-    * assert JSON body with [`kinbiko/jsonassert`](https://github.com/kinbiko/jsonassert)  
-      Use `<<PRESENCE>>`, `<<UNORDERED>>` etc.
-    * run one or more **DB checks** — SQL query plus expected JSON result.
+* Unlimited **steps** per scenario.
+* Each step can:
+    * send any HTTP method, URL, headers and JSON body
+    * reference values from previous responses (`{{<step>.response.<field>}}`)
+    * inject environment variables (`{{HOME}}`, `{{UUID}}`, ...)
+    * assert status code and JSON body (via [`kinbiko/jsonassert`](https://github.com/kinbiko/jsonassert))
+    * run one or more **DB checks** — SQL + expected JSON\YAML rows.
 
 ### PostgreSQL fixtures
+Loaded with [`rom8726/pgfixtures`](https://github.com/rom8726/pgfixtures):
 
-Fixtures are loaded with [`rom8726/pgfixtures`](https://github.com/rom8726/pgfixtures):
-
-* YML file per table (or group of tables)
-* Auto-truncate + sequence reset before inserting
+* One YML file per table (or group of tables)
+* Auto-truncate and sequence reset before inserting
 
 ### Hooks
-
-Optionally add pre/post request hooks to mutate state, mock time, etc.:
+Optional pre/post request hooks to stub time, clean caches, etc.:
 ```go
 testy.Run(t, &testy.Config{
     // ...
@@ -126,7 +150,6 @@ testy.Run(t, &testy.Config{
 ```
 
 ### Zero reflection magic
-
 The framework only needs:
 
 * an `http.Handler`
@@ -147,23 +170,32 @@ The framework only needs:
 
       request:
         method:  GET | POST | PUT | PATCH | DELETE | ...
-        path:    string
-        headers:               # optional
-          Authorization: Bearer xyz
-        body:                  # optional, any YAML -> JSON
+        path:    string            # placeholders {{...}} allowed
+        headers:                   # optional
+          X-Token: "{{TOKEN}}"
+        body:                      # optional, any YAML\JSON
+          userId: "123"
 
       response:
         status: integer
-        json:   string         # optional, must be valid JSON
+        json:   string             # optional, must be valid JSON
 
-      dbChecks:                # optional, list
-        - query:  SQL string
-          result: JSON|YAML    # expected rows as JSON array
+      dbChecks:                    # optional, list
+        - query:  SQL string       # placeholders {{...}} allowed
+          result: JSON|YAML        # expected rows as JSON array
 ```
 
 ---
 
 ## Why another testing tool?
 
-* Write tests in plain YAML — easy for QA/devs to co-author.
-* Works with *any* `http.Handler` — standard library, Gin, Chi, Echo, etc.
+* Write tests in plain YAML — easy for both developers and QA.
+* Works with *any* `http.Handler` — net/http, Gin, Chi, Echo, ...
+* Context-aware templating (response + env) out of the box.
+* Uses proven libraries for JSON assertions and data fixtures.
+
+---
+
+## License
+
+Apache-2.0 License
