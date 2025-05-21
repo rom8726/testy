@@ -115,7 +115,11 @@ func performDBCheck(t *testing.T, db *sql.DB, idx int, check DBCheck) {
 	}
 	defer rows.Close()
 
-	cols, _ := rows.Columns()
+	cols, err := rows.Columns()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	results := make([]map[string]any, 0)
 
 	for rows.Next() {
@@ -136,7 +140,10 @@ func performDBCheck(t *testing.T, db *sql.DB, idx int, check DBCheck) {
 		results = append(results, m)
 	}
 
-	actual, _ := json.Marshal(results)
+	actual, err := json.Marshal(results)
+	if err != nil {
+		t.Fatalf("cannot marshal dbCheck result: %v", err)
+	}
 
 	var expectedJSON string
 	switch v := check.Result.(type) {
@@ -147,6 +154,7 @@ func performDBCheck(t *testing.T, db *sql.DB, idx int, check DBCheck) {
 		if err != nil {
 			t.Fatalf("cannot marshal expected dbCheck result: %v", err)
 		}
+
 		expectedJSON = string(buf)
 	}
 
