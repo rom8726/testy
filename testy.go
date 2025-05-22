@@ -28,7 +28,7 @@ func Run(t *testing.T, cfg *Config) {
 
 	var mocks []*internal.MockInstance
 	if cfg.MockManager != nil {
-		mocks = cfg.MockManager.InternalInstances()
+		mocks = cfg.MockManager.internalInstances()
 	}
 
 	for _, tc := range cases {

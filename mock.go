@@ -50,7 +50,7 @@ func (m *MockManager) URL(name string) string {
 	return ""
 }
 
-func (m *MockManager) InternalInstances() []*internal.MockInstance {
+func (m *MockManager) internalInstances() []*internal.MockInstance {
 	res := make([]*internal.MockInstance, 0, len(m.instances))
 	for _, inst := range m.instances {
 		res = append(res, internal.NewMockInstance(inst.name, inst.server.URL, inst.router))
