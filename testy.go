@@ -12,6 +12,7 @@ type Config struct {
 	CasesDir    string
 	FixturesDir string
 	ConnStr     string
+	MockManager *MockManager
 
 	BeforeReq func() error
 	AfterReq  func() error
@@ -25,10 +26,16 @@ func Run(t *testing.T, cfg *Config) {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
 
+	var mocks []*internal.MockInstance
+	if cfg.MockManager != nil {
+		mocks = cfg.MockManager.InternalInstances()
+	}
+
 	for _, tc := range cases {
 		cfgInternal := internal.Config{
 			ConnStr:     cfg.ConnStr,
 			FixturesDir: cfg.FixturesDir,
+			Mocks:       mocks,
 			BeforeReq:   cfg.BeforeReq,
 			AfterReq:    cfg.AfterReq,
 		}

@@ -1,9 +1,10 @@
 package internal
 
 type TestCase struct {
-	Name     string   `yaml:"name"`
-	Fixtures []string `yaml:"fixtures,omitempty"`
-	Steps    []Step   `yaml:"steps"`
+	Name      string          `yaml:"name"`
+	Fixtures  []string        `yaml:"fixtures,omitempty"`
+	MockCalls []MockCallCheck `yaml:"mockCalls"`
+	Steps     []Step          `yaml:"steps"`
 }
 
 type Step struct {
@@ -28,4 +29,18 @@ type ResponseSpec struct {
 type DBCheck struct {
 	Query  string `yaml:"query"`
 	Result any    `yaml:"result"`
+}
+
+type MockCallExpect struct {
+	Method string `yaml:"method"`
+	Path   string `yaml:"path"`
+	Body   struct {
+		Contains string `yaml:"contains"`
+	} `yaml:"body"`
+}
+
+type MockCallCheck struct {
+	Mock   string         `yaml:"mock"`
+	Count  int            `yaml:"count"`
+	Expect MockCallExpect `yaml:"expect"`
 }

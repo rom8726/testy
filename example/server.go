@@ -1,11 +1,13 @@
 package testyexample
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
@@ -89,6 +91,10 @@ func NewServer(connStr string) *Server {
 		const query = `INSERT INTO users (name, created_at) VALUES ($1, NOW())`
 		_, err = db.ExecContext(request.Context(), query, req.Name)
 		if err != nil {
+			panic(err)
+		}
+
+		if err := sendAddUserNotification(req.Name); err != nil {
 			panic(err)
 		}
 
@@ -194,4 +200,32 @@ func NewServer(connStr string) *Server {
 	return &Server{
 		Router: router,
 	}
+}
+
+func sendAddUserNotification(name string) error {
+	baseURL := os.Getenv("NOTIFICATION_BASE_URL")
+	if baseURL == "" {
+		return fmt.Errorf("NOTIFICATION_BASE_URL is not set")
+	}
+
+	type notificationRequest struct {
+		Name string `json:"name"`
+	}
+	req := notificationRequest{Name: name}
+	data, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(baseURL+"/send", "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	return nil
 }
