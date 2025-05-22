@@ -21,9 +21,18 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) {
 
 	t.Run(tc.Name, func(t *testing.T) {
 		ctxMap := initCtxMap()
-		for _, inst := range cfg.Mocks {
-			ctxMap[inst.name+".baseURL"] = inst.url
-			ctxMap[inst.name+".calls"] = inst.spy.Calls
+		for name, def := range tc.Mocks {
+			inst := getMockInstance(cfg.Mocks, name)
+			if inst == nil {
+				t.Fatalf("mock %q not found", name)
+			}
+
+			for _, route := range def.Routes {
+				inst.router.AddRoute(route)
+			}
+
+			ctxMap[name+".baseURL"] = inst.url
+			ctxMap[name+".calls"] = inst.router.spy.Calls
 		}
 
 		loadFixtures(t, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
@@ -241,7 +250,17 @@ func assertMockCalls(t *testing.T, checks []MockCallCheck, mocks []*MockInstance
 func mockCalls(mocks []*MockInstance, name string) []MockCall {
 	for _, inst := range mocks {
 		if inst.name == name {
-			return *inst.spy.Calls
+			return *inst.router.spy.Calls
+		}
+	}
+
+	return nil
+}
+
+func getMockInstance(mocks []*MockInstance, name string) *MockInstance {
+	for _, inst := range mocks {
+		if inst.name == name {
+			return inst
 		}
 	}
 

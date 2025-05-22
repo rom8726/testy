@@ -1,10 +1,11 @@
 package internal
 
 type TestCase struct {
-	Name      string          `yaml:"name"`
-	Fixtures  []string        `yaml:"fixtures,omitempty"`
-	MockCalls []MockCallCheck `yaml:"mockCalls"`
-	Steps     []Step          `yaml:"steps"`
+	Name      string                   `yaml:"name"`
+	Fixtures  []string                 `yaml:"fixtures,omitempty"`
+	Mocks     map[string]MockServerDef `yaml:"mockServers,omitempty"`
+	MockCalls []MockCallCheck          `yaml:"mockCalls,omitempty"`
+	Steps     []Step                   `yaml:"steps"`
 }
 
 type Step struct {

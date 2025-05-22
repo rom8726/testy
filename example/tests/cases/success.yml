@@ -2,6 +2,15 @@
   fixtures:
     - dataset
 
+  mockServers:
+    notification:
+      routes:
+        - method: POST
+          path: /send
+          response:
+            status: 202
+            json: '{"status":"queued"}'
+
   mockCalls:
     - mock: notification
       count: 1
@@ -10,6 +19,7 @@
         path: /send
         body:
           contains: "Joseph"
+
   steps:
     - name: auth
       request:

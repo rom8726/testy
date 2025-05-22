@@ -2,7 +2,6 @@ package tests
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"testing"
 
@@ -12,22 +11,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	connStr := "postgresql://user:password@localhost:5432/db?sslmode=disable"
-
-	mocks, err := testy.StartMockManager(map[string]testy.MockServerDef{
-		"notification": {
-			Routes: []testy.MockRoute{
-				{
-					Method: "POST",
-					Path:   "/send",
-					Response: testy.MockResponse{
-						Status: http.StatusAccepted,
-						JSON:   `{"status":"queued"}`,
-					},
-				},
-			},
-		},
-	})
+	mocks, err := testy.StartMockManager("notification")
 	if err != nil {
 		t.Fatalf("mock start: %v", err)
 	}
@@ -39,6 +23,7 @@ func TestServer(t *testing.T) {
 	}
 	defer os.Unsetenv("NOTIFICATION_BASE_URL")
 
+	connStr := "postgresql://user:password@localhost:5432/db?sslmode=disable"
 	srv := testyexample.NewServer(connStr)
 
 	cfg := testy.Config{
