@@ -20,14 +20,30 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) {
 	t.Helper()
 
 	t.Run(tc.Name, func(t *testing.T) {
+		ctxMap := initCtxMap()
+		for name, def := range tc.Mocks {
+			inst := getMockInstance(cfg.Mocks, name)
+			if inst == nil {
+				t.Fatalf("mock %q not found", name)
+			}
+
+			for _, route := range def.Routes {
+				inst.router.AddRoute(route)
+			}
+
+			ctxMap[name+".baseURL"] = inst.url
+			ctxMap[name+".calls"] = inst.router.spy.Calls
+		}
+
 		loadFixtures(t, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
 
-		ctxMap := initCtxMap()
 		for _, step := range tc.Steps {
 			step.Name = strings.ReplaceAll(step.Name, " ", "_")
 
 			performStep(t, handler, step, cfg, ctxMap)
 		}
+
+		assertMockCalls(t, tc.MockCalls, cfg.Mocks)
 	})
 }
 
@@ -198,4 +214,55 @@ func performDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 
 	ja := jsonassert.New(t)
 	ja.Assert(string(actual), expectedJSON)
+}
+
+func assertMockCalls(t *testing.T, checks []MockCallCheck, mocks []*MockInstance) {
+	t.Helper()
+
+	for _, check := range checks {
+		calls := mockCalls(mocks, check.Mock)
+		if calls == nil {
+			t.Errorf("mock %q not found or has no calls", check.Mock)
+
+			continue
+		}
+
+		matched := 0
+		for _, call := range calls {
+			if check.Expect.Method != "" && call.Method != check.Expect.Method {
+				continue
+			}
+			if check.Expect.Path != "" && call.Path != check.Expect.Path {
+				continue
+			}
+			if check.Expect.Body.Contains != "" && !strings.Contains(call.Body, check.Expect.Body.Contains) {
+				continue
+			}
+			matched++
+		}
+
+		if matched != check.Count {
+			t.Errorf("mock %q expected %d matching calls, got %d", check.Mock, check.Count, matched)
+		}
+	}
+}
+
+func mockCalls(mocks []*MockInstance, name string) []MockCall {
+	for _, inst := range mocks {
+		if inst.name == name {
+			return *inst.router.spy.Calls
+		}
+	}
+
+	return nil
+}
+
+func getMockInstance(mocks []*MockInstance, name string) *MockInstance {
+	for _, inst := range mocks {
+		if inst.name == name {
+			return inst
+		}
+	}
+
+	return nil
 }

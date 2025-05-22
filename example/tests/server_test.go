@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/rom8726/testy"
@@ -10,8 +11,19 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	connStr := "postgresql://user:password@localhost:5432/db?sslmode=disable"
+	mocks, err := testy.StartMockManager("notification")
+	if err != nil {
+		t.Fatalf("mock start: %v", err)
+	}
+	defer mocks.StopAll()
 
+	err = os.Setenv("NOTIFICATION_BASE_URL", mocks.URL("notification"))
+	if err != nil {
+		t.Fatalf("set env: %v", err)
+	}
+	defer os.Unsetenv("NOTIFICATION_BASE_URL")
+
+	connStr := "postgresql://user:password@localhost:5432/db?sslmode=disable"
 	srv := testyexample.NewServer(connStr)
 
 	cfg := testy.Config{
@@ -19,6 +31,7 @@ func TestServer(t *testing.T) {
 		CasesDir:    "./cases",
 		FixturesDir: "./fixtures",
 		ConnStr:     connStr,
+		MockManager: mocks,
 		BeforeReq: func() error {
 			fmt.Println("before request")
 
