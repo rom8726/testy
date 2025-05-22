@@ -7,6 +7,7 @@ It lets you describe end-to-end scenarios in YAML, automatically:
 * asserts the HTTP response (status code + JSON body)
 * loads database fixtures before the scenario
 * executes SQL checks after each step
+* spins up lightweight HTTP mocks and verifies outbound calls
 
 Only PostgreSQL is supported.
 
@@ -141,6 +142,7 @@ go test ./...
     * inject environment variables (`{{HOME}}`, `{{UUID}}`, ...)
     * assert status code and JSON body (via [`kinbiko/jsonassert`](https://github.com/kinbiko/jsonassert))
     * run one or more **DB checks** — SQL + expected JSON\YAML rows.
+    * fire and assert HTTP **mocks** for outgoing calls
 
 ### PostgreSQL fixtures
 Loaded with [`rom8726/pgfixtures`](https://github.com/rom8726/pgfixtures):
@@ -156,6 +158,53 @@ testy.Run(t, &testy.Config{
     BeforeReq: func() error { /* do something */ return nil },
     AfterReq:  func() error { /* do something */ return nil },
 })
+```
+
+### HTTP mocks (quick glance)
+
+Lightly describe external services directly in the scenario, then verify how many times (and with what payload) your code called them.
+
+```yaml
+mockServers:
+  notification:
+    routes:
+      - method: POST
+        path: /send
+        response:
+          status: 202
+          json: '{"status":"queued"}'
+
+mockCalls:
+  - mock: notification
+    count: 1
+    expect:
+      method: POST
+      path: /send
+      body:
+        contains: "Joseph"
+```
+
+```go
+func TestServer(t *testing.T) {
+    mocks, err := testy.StartMockManager("notification")
+    if err != nil {
+        t.Fatalf("mock start: %v", err)
+    }
+    defer mocks.StopAll()
+  
+    err = os.Setenv("NOTIFICATION_BASE_URL", mocks.URL("notification"))
+    if err != nil {
+        t.Fatalf("set env: %v", err)
+    }
+    defer os.Unsetenv("NOTIFICATION_BASE_URL")
+  
+    // ...
+  
+    cfg := testy.Config{
+        MockManager: mocks,
+        // ...
+    }
+}
 ```
 
 ### Zero reflection magic
