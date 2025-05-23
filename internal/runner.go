@@ -4,20 +4,33 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kinbiko/jsonassert"
 	_ "github.com/lib/pq"
 	"github.com/rom8726/pgfixtures"
 )
 
-func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) {
+func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) TestCaseResult {
 	t.Helper()
+
+	start := time.Now()
+	res := TestCaseResult{Name: tc.Name}
+
+	defer func() {
+		res.Duration = time.Since(start)
+		if r := recover(); r != nil {
+			res.ErrMsg = fmt.Sprint(r)
+			panic(r)
+		}
+	}()
 
 	t.Run(tc.Name, func(t *testing.T) {
 		ctxMap := initCtxMap()
@@ -45,6 +58,8 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) {
 
 		assertMockCalls(t, tc.MockCalls, cfg.Mocks)
 	})
+
+	return res
 }
 
 func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctxMap map[string]any) {

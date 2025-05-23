@@ -16,6 +16,8 @@ type Config struct {
 
 	BeforeReq func() error
 	AfterReq  func() error
+
+	JUnitReport string
 }
 
 func Run(t *testing.T, cfg *Config) {
@@ -31,6 +33,8 @@ func Run(t *testing.T, cfg *Config) {
 		mocks = cfg.MockManager.internalInstances()
 	}
 
+	results := make([]internal.TestCaseResult, 0, len(cases))
+
 	for _, tc := range cases {
 		cfgInternal := internal.Config{
 			ConnStr:     cfg.ConnStr,
@@ -40,6 +44,13 @@ func Run(t *testing.T, cfg *Config) {
 			AfterReq:    cfg.AfterReq,
 		}
 
-		internal.RunSingle(t, cfg.Handler, tc, &cfgInternal)
+		res := internal.RunSingle(t, cfg.Handler, tc, &cfgInternal)
+		results = append(results, res)
+	}
+
+	if cfg.JUnitReport != "" {
+		if err := internal.WriteJUnitReport(cfg.JUnitReport, "testy", results); err != nil {
+			t.Logf("cannot write junit report: %v", err)
+		}
 	}
 }

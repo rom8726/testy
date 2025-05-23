@@ -42,6 +42,7 @@ func TestServer(t *testing.T) {
 
 			return nil
 		},
+		JUnitReport: "./junit.xml",
 	}
 
 	testy.Run(t, &cfg)
