@@ -26,12 +26,6 @@ type junitFailure struct {
 	Message string `xml:"message,attr"`
 }
 
-type TestCaseResult struct {
-	Name     string
-	Duration time.Duration
-	ErrMsg   string
-}
-
 func WriteJUnitReport(path, suiteName string, results []TestCaseResult) error {
 	suite := junitTestSuite{
 		Name:  suiteName,
