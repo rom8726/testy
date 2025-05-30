@@ -10,6 +10,12 @@ import (
 func LoadTestCases(dir string) ([]TestCase, error) {
 	const op = "LoadTestCases"
 
+	// Check if directory exists
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil, NewError(ErrNotFound, op, "directory does not exist").
+			WithContext("directory", dir)
+	}
+
 	files, err := filepath.Glob(filepath.Join(dir, "*.yml"))
 	if err != nil {
 		return nil, NewError(ErrInternal, op, "failed to find test case files").
