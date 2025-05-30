@@ -51,12 +51,15 @@ jobs:
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v3
+      if: success()
       with:
         name: coverage-report
         path: coverage.html
+        if-no-files-found: warn
 
     - name: Run example tests
       run: |
+        PGPASSWORD=password psql -h localhost -U user -d db -f example/migration.sql
         cd example
         go mod download
         go test -v ./...
