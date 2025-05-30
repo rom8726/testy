@@ -14,12 +14,19 @@ import (
 // ExecuteRequest performs an HTTP request against the given handler
 func ExecuteRequest(t *testing.T, step Step, handler http.Handler, ctxMap map[string]any) *httptest.ResponseRecorder {
 	t.Helper()
+	const op = "ExecuteRequest"
 
 	step.Request = renderRequest(step.Request, ctxMap)
 
 	var body io.Reader
 	if step.Request.Body != nil {
-		b, _ := json.Marshal(step.Request.Body)
+		b, err := json.Marshal(step.Request.Body)
+		if err != nil {
+			httpErr := NewError(ErrHTTP, op, "failed to marshal request body").
+				WithContext("step", step.Name).
+				WithContext("error", err.Error())
+			t.Fatalf("%v", httpErr)
+		}
 		body = bytes.NewReader(b)
 	}
 
@@ -41,9 +48,13 @@ func AssertResponse(
 	expected ResponseSpec,
 ) {
 	t.Helper()
+	const op = "AssertResponse"
 
 	if respRecorder.Result().StatusCode != expected.Status {
-		t.Fatalf("unexpected status: got %d, want %d", respRecorder.Result().StatusCode, expected.Status)
+		httpErr := NewError(ErrHTTP, op, "unexpected status code").
+			WithContext("expected", expected.Status).
+			WithContext("actual", respRecorder.Result().StatusCode)
+		t.Fatalf("%v", httpErr)
 	}
 
 	body := respRecorder.Body.String()
@@ -51,5 +62,6 @@ func AssertResponse(
 	if expected.JSON != "" {
 		ja := jsonassert.New(t)
 		ja.Assert(body, expected.JSON)
+		// Note: jsonassert.Assert calls t.Error internally if assertion fails
 	}
 }

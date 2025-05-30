@@ -8,11 +8,15 @@ import (
 // AssertMockCalls checks if the mock calls match the expected calls
 func AssertMockCalls(t *testing.T, checks []MockCallCheck, mocks []*MockInstance) {
 	t.Helper()
+	const op = "AssertMockCalls"
 
 	for _, check := range checks {
 		calls := GetMockCalls(mocks, check.Mock)
 		if calls == nil {
-			t.Errorf("mock %q not found or has no calls", check.Mock)
+			mockErr := NewError(ErrMock, op, "mock not found or has no calls").
+				WithContext("mock", check.Mock)
+			// Using Errorf instead of Fatalf to allow tests to continue
+			t.Errorf("%v", mockErr)
 
 			continue
 		}
@@ -32,7 +36,12 @@ func AssertMockCalls(t *testing.T, checks []MockCallCheck, mocks []*MockInstance
 		}
 
 		if matched != check.Count {
-			t.Errorf("mock %q expected %d matching calls, got %d", check.Mock, check.Count, matched)
+			mockErr := NewError(ErrMock, op, "unexpected number of matching calls").
+				WithContext("mock", check.Mock).
+				WithContext("expected", check.Count).
+				WithContext("actual", matched)
+			// Using Errorf instead of Fatalf to allow tests to continue
+			t.Errorf("%v", mockErr)
 		}
 	}
 }

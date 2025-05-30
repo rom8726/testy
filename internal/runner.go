@@ -19,6 +19,7 @@ type TestCaseResult struct {
 // RunSingle runs a single test case
 func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) TestCaseResult {
 	t.Helper()
+	const op = "RunSingle"
 
 	start := time.Now()
 	res := TestCaseResult{Name: tc.Name}
@@ -36,7 +37,9 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 		for name, def := range tc.Mocks {
 			inst := FindMockInstance(cfg.Mocks, name)
 			if inst == nil {
-				t.Fatalf("mock %q not found", name)
+				mockErr := NewError(ErrMock, op, "mock not found").
+					WithContext("mock", name)
+				t.Fatalf("%v", mockErr)
 			}
 
 			for _, route := range def.Routes {
@@ -47,6 +50,7 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 			ctxMap[name+".calls"] = inst.router.spy.Calls
 		}
 
+		// Load fixtures
 		LoadFixturesFromList(t, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
 
 		for _, step := range tc.Steps {
@@ -55,6 +59,7 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 			performStep(t, handler, step, cfg, ctxMap)
 		}
 
+		// Assert mock calls
 		AssertMockCalls(t, tc.MockCalls, cfg.Mocks)
 	})
 
@@ -64,30 +69,47 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 // performStep executes a single step in a test case
 func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctxMap map[string]any) {
 	t.Helper()
+	const op = "performStep"
 
 	if cfg.BeforeReq != nil {
 		if err := cfg.BeforeReq(); err != nil {
-			t.Fatalf("beforeReq failed for step %q: %v", step.Name, err)
+			hookErr := NewError(ErrInternal, op, "beforeReq hook failed").
+				WithContext("step", step.Name).
+				WithContext("error", err.Error())
+			t.Fatalf("%v", hookErr)
 		}
 	}
 
+	// Execute request using HTTP client
 	rec := ExecuteRequest(t, step, handler, ctxMap)
 
 	if cfg.AfterReq != nil {
 		if err := cfg.AfterReq(); err != nil {
-			t.Fatalf("afterReq failed for step %q: %v", step.Name, err)
+			hookErr := NewError(ErrInternal, op, "afterReq hook failed").
+				WithContext("step", step.Name).
+				WithContext("error", err.Error())
+			t.Fatalf("%v", hookErr)
 		}
 	}
 
-	if respBody := rec.Body.Bytes(); len(respBody) > 0 {
-		var jsonData any
-		if err := json.Unmarshal(respBody, &jsonData); err != nil {
-			t.Fatalf("invalid JSON: %v", err)
+	// Extract JSON fields from response body
+	if rec != nil && rec.Body != nil {
+		respBody := rec.Body.Bytes()
+		if len(respBody) > 0 {
+			var jsonData any
+			if err := json.Unmarshal(respBody, &jsonData); err != nil {
+				jsonErr := NewError(ErrHTTP, op, "failed to parse response JSON").
+					WithContext("step", step.Name).
+					WithContext("error", err.Error())
+				t.Fatalf("%v", jsonErr)
+			}
+			extractJSONFields(step.Name+".response", jsonData, ctxMap)
 		}
-		extractJSONFields(step.Name+".response", jsonData, ctxMap)
 	}
 
+	// Assert response using HTTP client
 	AssertResponse(t, rec, step.Response)
 
+	// Execute DB checks using database client
 	ExecuteDBChecks(t, cfg.ConnStr, step, ctxMap)
 }

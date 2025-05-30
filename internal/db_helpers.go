@@ -36,17 +36,24 @@ func LoadFixtureFile(t *testing.T, connStr, fixturePath string) {
 
 	err := pgfixtures.Load(t.Context(), cfg)
 	if err != nil {
-		t.Fatalf("load fixture %s: %v", fixturePath, err)
+		dbErr := NewError(ErrDatabase, "LoadFixtureFile", "failed to load fixture").
+			WithContext("fixture", fixturePath).
+			WithContext("error", err.Error())
+		t.Fatalf("%v", dbErr)
 	}
 }
 
 // ExecuteDBChecks executes all database checks for a step
 func ExecuteDBChecks(t *testing.T, connStr string, step Step, ctxMap map[string]any) {
 	t.Helper()
+	const op = "ExecuteDBChecks"
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		t.Fatalf("cannot open db: %v", err)
+		dbErr := NewError(ErrDatabase, op, "failed to open database connection").
+			WithContext("step", step.Name).
+			WithContext("error", err.Error())
+		t.Fatalf("%v", dbErr)
 	}
 	defer db.Close()
 
@@ -59,16 +66,22 @@ func ExecuteDBChecks(t *testing.T, connStr string, step Step, ctxMap map[string]
 // ExecuteDBCheck executes a single database check
 func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 	t.Helper()
+	const op = "ExecuteDBCheck"
 
 	rows, err := db.QueryContext(t.Context(), check.Query)
 	if err != nil {
-		t.Fatalf("dbCheck failed for query %q: %v", check.Query, err)
+		dbErr := NewError(ErrDatabase, op, "failed to execute database query").
+			WithContext("query", check.Query).
+			WithContext("error", err.Error())
+		t.Fatalf("%v", dbErr)
 	}
 	defer rows.Close()
 
 	cols, err := rows.Columns()
 	if err != nil {
-		t.Fatal(err)
+		dbErr := NewError(ErrDatabase, op, "failed to get column information").
+			WithContext("error", err.Error())
+		t.Fatalf("%v", dbErr)
 	}
 
 	results := make([]map[string]any, 0)
@@ -80,7 +93,9 @@ func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 			ptrs[i] = &row[i]
 		}
 		if err := rows.Scan(ptrs...); err != nil {
-			t.Fatalf("scan error: %v", err)
+			dbErr := NewError(ErrDatabase, op, "failed to scan row data").
+				WithContext("error", err.Error())
+			t.Fatalf("%v", dbErr)
 		}
 
 		m := make(map[string]any)
@@ -93,7 +108,9 @@ func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 
 	actual, err := json.Marshal(results)
 	if err != nil {
-		t.Fatalf("cannot marshal dbCheck result: %v", err)
+		dbErr := NewError(ErrInternal, op, "failed to marshal query results").
+			WithContext("error", err.Error())
+		t.Fatalf("%v", dbErr)
 	}
 
 	var expectedJSON string
@@ -103,7 +120,9 @@ func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 	default:
 		buf, err := json.Marshal(v)
 		if err != nil {
-			t.Fatalf("cannot marshal expected dbCheck result: %v", err)
+			dbErr := NewError(ErrInternal, op, "failed to marshal expected results").
+				WithContext("error", err.Error())
+			t.Fatalf("%v", dbErr)
 		}
 
 		expectedJSON = string(buf)
