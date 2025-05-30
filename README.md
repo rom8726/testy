@@ -1,5 +1,7 @@
 # testy
 
+[![Go Tests](https://github.com/rom8726/testy/actions/workflows/go-test.yml/badge.svg)](https://github.com/rom8726/testy/actions/workflows/go-test.yml)
+
 A tiny functional-testing framework for HTTP handlers written in Go.
 It lets you describe end-to-end scenarios in YAML, automatically:
 
@@ -191,15 +193,15 @@ func TestServer(t *testing.T) {
         t.Fatalf("mock start: %v", err)
     }
     defer mocks.StopAll()
-  
+
     err = os.Setenv("NOTIFICATION_BASE_URL", mocks.URL("notification"))
     if err != nil {
         t.Fatalf("set env: %v", err)
     }
     defer os.Unsetenv("NOTIFICATION_BASE_URL")
-  
+
     // ...
-  
+
     cfg := testy.Config{
         MockManager: mocks,
         // ...
