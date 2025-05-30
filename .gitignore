@@ -27,3 +27,5 @@ go.work.sum
 # IDEs
 .idea/
 .vscode/
+
+docs/tasks.md

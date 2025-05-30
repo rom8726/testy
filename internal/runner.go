@@ -1,25 +1,25 @@
 package internal
 
 import (
-	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/kinbiko/jsonassert"
-	_ "github.com/lib/pq"
-	"github.com/rom8726/pgfixtures"
 )
 
+// TestCaseResult represents the result of running a test case
+type TestCaseResult struct {
+	Name     string
+	Duration time.Duration
+	ErrMsg   string
+}
+
+// RunSingle runs a single test case
 func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) TestCaseResult {
 	t.Helper()
+	const op = "RunSingle"
 
 	start := time.Now()
 	res := TestCaseResult{Name: tc.Name}
@@ -35,9 +35,11 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 	t.Run(tc.Name, func(t *testing.T) {
 		ctxMap := initCtxMap()
 		for name, def := range tc.Mocks {
-			inst := getMockInstance(cfg.Mocks, name)
+			inst := FindMockInstance(cfg.Mocks, name)
 			if inst == nil {
-				t.Fatalf("mock %q not found", name)
+				mockErr := NewError(ErrMock, op, "mock not found").
+					WithContext("mock", name)
+				t.Fatalf("%v", mockErr)
 			}
 
 			for _, route := range def.Routes {
@@ -48,7 +50,8 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 			ctxMap[name+".calls"] = inst.router.spy.Calls
 		}
 
-		loadFixtures(t, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
+		// Load fixtures
+		LoadFixturesFromList(t, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
 
 		for _, step := range tc.Steps {
 			step.Name = strings.ReplaceAll(step.Name, " ", "_")
@@ -56,228 +59,57 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 			performStep(t, handler, step, cfg, ctxMap)
 		}
 
-		assertMockCalls(t, tc.MockCalls, cfg.Mocks)
+		// Assert mock calls
+		AssertMockCalls(t, tc.MockCalls, cfg.Mocks)
 	})
 
 	return res
 }
 
+// performStep executes a single step in a test case
 func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctxMap map[string]any) {
 	t.Helper()
+	const op = "performStep"
 
 	if cfg.BeforeReq != nil {
 		if err := cfg.BeforeReq(); err != nil {
-			t.Fatalf("beforeReq failed for step %q: %v", step.Name, err)
+			hookErr := NewError(ErrInternal, op, "beforeReq hook failed").
+				WithContext("step", step.Name).
+				WithContext("error", err.Error())
+			t.Fatalf("%v", hookErr)
 		}
 	}
 
-	rec := performRequest(t, step, handler, ctxMap)
+	// Execute request using HTTP client
+	rec := ExecuteRequest(t, step, handler, ctxMap)
 
 	if cfg.AfterReq != nil {
 		if err := cfg.AfterReq(); err != nil {
-			t.Fatalf("afterReq failed for step %q: %v", step.Name, err)
+			hookErr := NewError(ErrInternal, op, "afterReq hook failed").
+				WithContext("step", step.Name).
+				WithContext("error", err.Error())
+			t.Fatalf("%v", hookErr)
 		}
 	}
 
-	if respBody := rec.Body.Bytes(); len(respBody) > 0 {
-		var jsonData any
-		if err := json.Unmarshal(respBody, &jsonData); err != nil {
-			t.Fatalf("invalid JSON: %v", err)
-		}
-		extractJSONFields(step.Name+".response", jsonData, ctxMap)
-	}
-
-	assertResponse(t, rec, step.Response)
-
-	performDBChecks(t, cfg.ConnStr, step, ctxMap)
-}
-
-func loadFixtures(t *testing.T, connStr, fixturesDir string, fixtures []string) {
-	t.Helper()
-
-	for _, fixtureName := range fixtures {
-		fixtureName += ".yml"
-		fixturePath := filepath.Join(fixturesDir, fixtureName)
-		loadFixture(t, connStr, fixturePath)
-	}
-}
-
-func loadFixture(t *testing.T, connStr, fixturePath string) {
-	t.Helper()
-
-	cfg := &pgfixtures.Config{
-		FilePath: fixturePath,
-		ConnStr:  connStr,
-		Truncate: true,
-		ResetSeq: true,
-		DryRun:   false,
-	}
-
-	err := pgfixtures.Load(t.Context(), cfg)
-	if err != nil {
-		t.Fatalf("load fixture %s: %v", fixturePath, err)
-	}
-}
-
-func performRequest(t *testing.T, step Step, handler http.Handler, ctxMap map[string]any) *httptest.ResponseRecorder {
-	t.Helper()
-
-	step.Request = renderRequest(step.Request, ctxMap)
-
-	var body io.Reader
-	if step.Request.Body != nil {
-		b, _ := json.Marshal(step.Request.Body)
-		body = bytes.NewReader(b)
-	}
-
-	req := httptest.NewRequest(step.Request.Method, step.Request.Path, body)
-	for k, v := range step.Request.Headers {
-		req.Header.Set(k, v)
-	}
-
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	return rec
-}
-
-func assertResponse(
-	t *testing.T,
-	respRecorder *httptest.ResponseRecorder,
-	expected ResponseSpec,
-) {
-	t.Helper()
-
-	if respRecorder.Result().StatusCode != expected.Status {
-		t.Fatalf("unexpected status: got %d, want %d", respRecorder.Result().StatusCode, expected.Status)
-	}
-
-	body := respRecorder.Body.String()
-
-	if expected.JSON != "" {
-		ja := jsonassert.New(t)
-		ja.Assert(body, expected.JSON)
-	}
-}
-
-func performDBChecks(t *testing.T, connStr string, step Step, ctxMap map[string]any) {
-	t.Helper()
-
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		t.Fatalf("cannot open db: %v", err)
-	}
-	defer db.Close()
-
-	for _, check := range step.DBChecks {
-		check = renderDBCheck(check, ctxMap)
-		performDBCheck(t, db, check)
-	}
-}
-
-func performDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
-	t.Helper()
-
-	rows, err := db.QueryContext(t.Context(), check.Query)
-	if err != nil {
-		t.Fatalf("dbCheck failed for query %q: %v", check.Query, err)
-	}
-	defer rows.Close()
-
-	cols, err := rows.Columns()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	results := make([]map[string]any, 0)
-
-	for rows.Next() {
-		row := make([]any, len(cols))
-		ptrs := make([]any, len(cols))
-		for i := range ptrs {
-			ptrs[i] = &row[i]
-		}
-		if err := rows.Scan(ptrs...); err != nil {
-			t.Fatalf("scan error: %v", err)
-		}
-
-		m := make(map[string]any)
-		for i, col := range cols {
-			m[col] = row[i]
-		}
-
-		results = append(results, m)
-	}
-
-	actual, err := json.Marshal(results)
-	if err != nil {
-		t.Fatalf("cannot marshal dbCheck result: %v", err)
-	}
-
-	var expectedJSON string
-	switch v := check.Result.(type) {
-	case string:
-		expectedJSON = v
-	default:
-		buf, err := json.Marshal(v)
-		if err != nil {
-			t.Fatalf("cannot marshal expected dbCheck result: %v", err)
-		}
-
-		expectedJSON = string(buf)
-	}
-
-	ja := jsonassert.New(t)
-	ja.Assert(string(actual), expectedJSON)
-}
-
-func assertMockCalls(t *testing.T, checks []MockCallCheck, mocks []*MockInstance) {
-	t.Helper()
-
-	for _, check := range checks {
-		calls := mockCalls(mocks, check.Mock)
-		if calls == nil {
-			t.Errorf("mock %q not found or has no calls", check.Mock)
-
-			continue
-		}
-
-		matched := 0
-		for _, call := range calls {
-			if check.Expect.Method != "" && call.Method != check.Expect.Method {
-				continue
+	// Extract JSON fields from response body
+	if rec != nil && rec.Body != nil {
+		respBody := rec.Body.Bytes()
+		if len(respBody) > 0 {
+			var jsonData any
+			if err := json.Unmarshal(respBody, &jsonData); err != nil {
+				jsonErr := NewError(ErrHTTP, op, "failed to parse response JSON").
+					WithContext("step", step.Name).
+					WithContext("error", err.Error())
+				t.Fatalf("%v", jsonErr)
 			}
-			if check.Expect.Path != "" && call.Path != check.Expect.Path {
-				continue
-			}
-			if check.Expect.Body.Contains != "" && !strings.Contains(call.Body, check.Expect.Body.Contains) {
-				continue
-			}
-			matched++
-		}
-
-		if matched != check.Count {
-			t.Errorf("mock %q expected %d matching calls, got %d", check.Mock, check.Count, matched)
-		}
-	}
-}
-
-func mockCalls(mocks []*MockInstance, name string) []MockCall {
-	for _, inst := range mocks {
-		if inst.name == name {
-			return *inst.router.spy.Calls
+			extractJSONFields(step.Name+".response", jsonData, ctxMap)
 		}
 	}
 
-	return nil
-}
+	// Assert response using HTTP client
+	AssertResponse(t, rec, step.Response)
 
-func getMockInstance(mocks []*MockInstance, name string) *MockInstance {
-	for _, inst := range mocks {
-		if inst.name == name {
-			return inst
-		}
-	}
-
-	return nil
+	// Execute DB checks using database client
+	ExecuteDBChecks(t, cfg.ConnStr, step, ctxMap)
 }

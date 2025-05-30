@@ -26,13 +26,9 @@ type junitFailure struct {
 	Message string `xml:"message,attr"`
 }
 
-type TestCaseResult struct {
-	Name     string
-	Duration time.Duration
-	ErrMsg   string
-}
-
 func WriteJUnitReport(path, suiteName string, results []TestCaseResult) error {
+	const op = "WriteJUnitReport"
+
 	suite := junitTestSuite{
 		Name:  suiteName,
 		Tests: len(results),
@@ -56,15 +52,28 @@ func WriteJUnitReport(path, suiteName string, results []TestCaseResult) error {
 
 	f, err := os.Create(path)
 	if err != nil {
-		return err
+		return NewError(ErrInternal, op, "failed to create report file").
+			WithContext("path", path).
+			WithContext("error", err.Error())
 	}
 	defer f.Close()
 
-	_, _ = f.Write([]byte(xml.Header))
+	if _, err := f.Write([]byte(xml.Header)); err != nil {
+		return NewError(ErrInternal, op, "failed to write XML header").
+			WithContext("path", path).
+			WithContext("error", err.Error())
+	}
+
 	enc := xml.NewEncoder(f)
 	enc.Indent("", "  ")
 
-	return enc.Encode(suite)
+	if err := enc.Encode(suite); err != nil {
+		return NewError(ErrInternal, op, "failed to encode test results").
+			WithContext("path", path).
+			WithContext("error", err.Error())
+	}
+
+	return nil
 }
 
 func formatDuration(d time.Duration) string {
