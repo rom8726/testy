@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/rom8726/pgfixtures"
+
 	"github.com/rom8726/testy"
 
 	"testyexample"
@@ -28,6 +30,7 @@ func TestServer(t *testing.T) {
 
 	cfg := testy.Config{
 		Handler:     srv.Router,
+		DBType:      pgfixtures.PostgreSQL,
 		CasesDir:    "./cases",
 		FixturesDir: "./fixtures",
 		ConnStr:     connStr,
