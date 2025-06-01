@@ -51,7 +51,7 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 		}
 
 		// Load fixtures
-		LoadFixturesFromList(t, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
+		LoadFixturesFromList(t, cfg.DBType, cfg.ConnStr, cfg.FixturesDir, tc.Fixtures)
 
 		for _, step := range tc.Steps {
 			step.Name = strings.ReplaceAll(step.Name, " ", "_")

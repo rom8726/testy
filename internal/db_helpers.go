@@ -12,26 +12,27 @@ import (
 )
 
 // LoadFixturesFromList loads all fixtures specified in the test case
-func LoadFixturesFromList(t *testing.T, connStr, fixturesDir string, fixtures []string) {
+func LoadFixturesFromList(t *testing.T, dbType pgfixtures.DatabaseType, connStr, fixturesDir string, fixtures []string) {
 	t.Helper()
 
 	for _, fixtureName := range fixtures {
 		fixtureName += ".yml"
 		fixturePath := filepath.Join(fixturesDir, fixtureName)
-		LoadFixtureFile(t, connStr, fixturePath)
+		LoadFixtureFile(t, dbType, connStr, fixturePath)
 	}
 }
 
 // LoadFixtureFile loads a single fixture file
-func LoadFixtureFile(t *testing.T, connStr, fixturePath string) {
+func LoadFixtureFile(t *testing.T, dbType pgfixtures.DatabaseType, connStr, fixturePath string) {
 	t.Helper()
 
 	cfg := &pgfixtures.Config{
-		FilePath: fixturePath,
-		ConnStr:  connStr,
-		Truncate: true,
-		ResetSeq: true,
-		DryRun:   false,
+		FilePath:     fixturePath,
+		ConnStr:      connStr,
+		DatabaseType: dbType,
+		Truncate:     true,
+		ResetSeq:     true,
+		DryRun:       false,
 	}
 
 	err := pgfixtures.Load(t.Context(), cfg)
