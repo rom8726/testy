@@ -29,7 +29,7 @@ func Run(t *testing.T, cfg *Config) {
 	cases, err := internal.LoadTestCases(cfg.CasesDir)
 	if err != nil {
 		// Use the error directly since it's already wrapped by LoadTestCases
-		t.Fatalf("%v", err)
+		t.Fatalf("%+v", err)
 	}
 
 	var mocks []*internal.MockInstance
@@ -57,7 +57,7 @@ func Run(t *testing.T, cfg *Config) {
 		if err := internal.WriteJUnitReport(cfg.JUnitReport, "testy", results); err != nil {
 			// Use the error directly since it's already wrapped by WriteJUnitReport
 			// Using Logf instead of Fatalf to allow tests to continue
-			t.Logf("%v", err)
+			t.Logf("%+v", err)
 		}
 	}
 }

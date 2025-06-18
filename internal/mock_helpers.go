@@ -16,7 +16,7 @@ func AssertMockCalls(t *testing.T, checks []MockCallCheck, mocks []*MockInstance
 			mockErr := NewError(ErrMock, op, "mock not found or has no calls").
 				WithContext("mock", check.Mock)
 			// Using Errorf instead of Fatalf to allow tests to continue
-			t.Errorf("%v", mockErr)
+			t.Errorf("%+v", mockErr)
 
 			continue
 		}
@@ -41,7 +41,7 @@ func AssertMockCalls(t *testing.T, checks []MockCallCheck, mocks []*MockInstance
 				WithContext("expected", check.Count).
 				WithContext("actual", matched)
 			// Using Errorf instead of Fatalf to allow tests to continue
-			t.Errorf("%v", mockErr)
+			t.Errorf("%+v", mockErr)
 		}
 	}
 }

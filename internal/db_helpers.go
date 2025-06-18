@@ -40,7 +40,7 @@ func LoadFixtureFile(t *testing.T, dbType pgfixtures.DatabaseType, connStr, fixt
 		dbErr := NewError(ErrDatabase, "LoadFixtureFile", "failed to load fixture").
 			WithContext("fixture", fixturePath).
 			WithContext("error", err.Error())
-		t.Fatalf("%v", dbErr)
+		t.Fatalf("%+v", dbErr)
 	}
 }
 
@@ -54,7 +54,7 @@ func ExecuteDBChecks(t *testing.T, connStr string, step Step, ctxMap map[string]
 		dbErr := NewError(ErrDatabase, op, "failed to open database connection").
 			WithContext("step", step.Name).
 			WithContext("error", err.Error())
-		t.Fatalf("%v", dbErr)
+		t.Fatalf("%+v", dbErr)
 	}
 	defer db.Close()
 
@@ -74,7 +74,7 @@ func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 		dbErr := NewError(ErrDatabase, op, "failed to execute database query").
 			WithContext("query", check.Query).
 			WithContext("error", err.Error())
-		t.Fatalf("%v", dbErr)
+		t.Fatalf("%+v", dbErr)
 	}
 	defer rows.Close()
 
@@ -82,7 +82,7 @@ func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 	if err != nil {
 		dbErr := NewError(ErrDatabase, op, "failed to get column information").
 			WithContext("error", err.Error())
-		t.Fatalf("%v", dbErr)
+		t.Fatalf("%+v", dbErr)
 	}
 
 	results := make([]map[string]any, 0)
@@ -96,7 +96,7 @@ func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 		if err := rows.Scan(ptrs...); err != nil {
 			dbErr := NewError(ErrDatabase, op, "failed to scan row data").
 				WithContext("error", err.Error())
-			t.Fatalf("%v", dbErr)
+			t.Fatalf("%+v", dbErr)
 		}
 
 		m := make(map[string]any)
@@ -111,7 +111,7 @@ func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 	if err != nil {
 		dbErr := NewError(ErrInternal, op, "failed to marshal query results").
 			WithContext("error", err.Error())
-		t.Fatalf("%v", dbErr)
+		t.Fatalf("%+v", dbErr)
 	}
 
 	var expectedJSON string
@@ -123,7 +123,7 @@ func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 		if err != nil {
 			dbErr := NewError(ErrInternal, op, "failed to marshal expected results").
 				WithContext("error", err.Error())
-			t.Fatalf("%v", dbErr)
+			t.Fatalf("%+v", dbErr)
 		}
 
 		expectedJSON = string(buf)

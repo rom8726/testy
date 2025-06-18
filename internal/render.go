@@ -11,7 +11,7 @@ func RenderTemplate(input string, ctx map[string]any) string {
 	return placeholderRe.ReplaceAllStringFunc(input, func(match string) string {
 		key := placeholderRe.FindStringSubmatch(match)[1]
 		if val, ok := ctx[key]; ok {
-			return fmt.Sprintf("%v", val)
+			return fmt.Sprintf("%+v", val)
 		}
 
 		return match

@@ -3,6 +3,8 @@ package internal
 import (
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 )
 
 // Common error types
@@ -43,15 +45,56 @@ type Error struct {
 
 // Error returns a string representation of the error
 func (e *Error) Error() string {
+	var b strings.Builder
+
 	if e.Message != "" {
-		return e.Message
+		b.WriteString(e.Message)
 	}
 
 	if e.Op != "" {
-		return fmt.Sprintf("%s: %v", e.Op, e.Err)
+		if b.Len() > 0 {
+			b.WriteString(": ")
+		}
+		b.WriteString(e.Op)
 	}
 
-	return e.Err.Error()
+	if e.Err != nil {
+		underlying := e.Err.Error()
+		if underlying != "" && !strings.Contains(b.String(), underlying) {
+			if b.Len() > 0 {
+				b.WriteString(": ")
+			}
+			b.WriteString(underlying)
+		}
+	}
+
+	if len(e.Context) != 0 {
+		keys := make([]string, 0, len(e.Context))
+		keysExclm := make([]string, 0, len(e.Context))
+		for k := range e.Context {
+			if strings.HasPrefix(k, "!") {
+				keysExclm = append(keysExclm, k)
+			} else {
+				keys = append(keys, k)
+			}
+		}
+		sort.Strings(keys)
+		sort.Strings(keysExclm)
+
+		keysFinal := append(keys, keysExclm...)
+
+		b.WriteString(" {")
+		for i, k := range keysFinal {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+
+			_, _ = fmt.Fprintf(&b, "%s=%v", k, e.Context[k])
+		}
+		b.WriteString("}")
+	}
+
+	return b.String()
 }
 
 // Unwrap returns the underlying error
@@ -79,3 +122,36 @@ func (e *Error) WithContext(key string, value interface{}) *Error {
 	e.Context[key] = value
 	return e
 }
+
+//func (e *Error) Format(s fmt.State, verb rune) {
+//	switch verb {
+//	case 'v':
+//		if s.Flag('+') {
+//			_, _ = io.WriteString(s, e.Error())
+//
+//			if len(e.Context) > 0 {
+//				keys := make([]string, 0, len(e.Context))
+//				for k := range e.Context {
+//					keys = append(keys, k)
+//				}
+//				sort.Strings(keys)
+//
+//				_, _ = io.WriteString(s, " {")
+//				for i, k := range keys {
+//					if i > 0 {
+//						_, _ = io.WriteString(s, ", ")
+//					}
+//					_, _ = fmt.Fprintf(s, "%s=%v", k, e.Context[k])
+//				}
+//				_, _ = io.WriteString(s, "}")
+//			}
+//			return
+//		}
+//
+//		fallthrough
+//	case 's':
+//		_, _ = io.WriteString(s, e.Error())
+//	case 'q':
+//		_, _ = fmt.Fprintf(s, "%q", e.Error())
+//	}
+//}

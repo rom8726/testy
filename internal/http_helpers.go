@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/kinbiko/jsonassert"
@@ -25,7 +26,7 @@ func ExecuteRequest(t *testing.T, step Step, handler http.Handler, ctxMap map[st
 			httpErr := NewError(ErrHTTP, op, "failed to marshal request body").
 				WithContext("step", step.Name).
 				WithContext("error", err.Error())
-			t.Fatalf("%v", httpErr)
+			t.Fatalf("%+v", httpErr)
 		}
 		body = bytes.NewReader(b)
 	}
@@ -49,15 +50,15 @@ func AssertResponse(
 ) {
 	t.Helper()
 	const op = "AssertResponse"
+	body := respRecorder.Body.String()
 
 	if respRecorder.Result().StatusCode != expected.Status {
 		httpErr := NewError(ErrHTTP, op, "unexpected status code").
 			WithContext("expected", expected.Status).
-			WithContext("actual", respRecorder.Result().StatusCode)
-		t.Fatalf("%v", httpErr)
+			WithContext("actual", respRecorder.Result().StatusCode).
+			WithContext("!body", strings.ReplaceAll(body, "\n", " "))
+		t.Fatalf("%+v", httpErr)
 	}
-
-	body := respRecorder.Body.String()
 
 	if expected.JSON != "" {
 		ja := jsonassert.New(t)

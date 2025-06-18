@@ -39,7 +39,7 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 			if inst == nil {
 				mockErr := NewError(ErrMock, op, "mock not found").
 					WithContext("mock", name)
-				t.Fatalf("%v", mockErr)
+				t.Fatalf("%+v", mockErr)
 			}
 
 			for _, route := range def.Routes {
@@ -76,7 +76,7 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 			hookErr := NewError(ErrInternal, op, "beforeReq hook failed").
 				WithContext("step", step.Name).
 				WithContext("error", err.Error())
-			t.Fatalf("%v", hookErr)
+			t.Fatalf("%+v", hookErr)
 		}
 	}
 
@@ -88,7 +88,7 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 			hookErr := NewError(ErrInternal, op, "afterReq hook failed").
 				WithContext("step", step.Name).
 				WithContext("error", err.Error())
-			t.Fatalf("%v", hookErr)
+			t.Fatalf("%+v", hookErr)
 		}
 	}
 
@@ -101,7 +101,7 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 				jsonErr := NewError(ErrHTTP, op, "failed to parse response JSON").
 					WithContext("step", step.Name).
 					WithContext("error", err.Error())
-				t.Fatalf("%v", jsonErr)
+				t.Fatalf("%+v", jsonErr)
 			}
 			extractJSONFields(step.Name+".response", jsonData, ctxMap)
 		}
