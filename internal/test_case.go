@@ -27,6 +27,7 @@ type RequestSpec struct {
 type ResponseSpec struct {
 	Status int    `yaml:"status"`
 	JSON   string `yaml:"json"`
+	Text   string `yaml:"text"`
 }
 
 type DBCheck struct {

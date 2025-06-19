@@ -76,5 +76,12 @@ func AssertResponse(
 		ja := jsonassert.New(t)
 		ja.Assert(body, expected.JSON)
 		// Note: jsonassert.Assert calls t.Error internally if assertion fails
+	} else if expected.Text != "" {
+		if body != expected.Text {
+			httpErr := NewError(ErrHTTP, op, "unexpected response body").
+				WithContext("expected", expected.Text).
+				WithContext("actual", body)
+			t.Fatalf("%+v", httpErr)
+		}
 	}
 }

@@ -92,18 +92,20 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 		}
 	}
 
-	// Extract JSON fields from response body
+	// Extract JSON fields from the response body
 	if rec != nil && rec.Body != nil {
 		respBody := rec.Body.Bytes()
 		if len(respBody) > 0 {
-			var jsonData any
-			if err := json.Unmarshal(respBody, &jsonData); err != nil {
-				jsonErr := NewError(ErrHTTP, op, "failed to parse response JSON").
-					WithContext("step", step.Name).
-					WithContext("error", err.Error())
-				t.Fatalf("%+v", jsonErr)
+			if rec.Header().Get("Content-Type") == "application/json" {
+				var jsonData any
+				if err := json.Unmarshal(respBody, &jsonData); err != nil {
+					jsonErr := NewError(ErrHTTP, op, "failed to parse response JSON").
+						WithContext("step", step.Name).
+						WithContext("error", err.Error())
+					t.Fatalf("%+v", jsonErr)
+				}
+				extractJSONFields(step.Name+".response", jsonData, ctxMap)
 			}
-			extractJSONFields(step.Name+".response", jsonData, ctxMap)
 		}
 	}
 
