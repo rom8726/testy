@@ -55,6 +55,11 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 
 		for _, step := range tc.Steps {
 			step.Name = strings.ReplaceAll(step.Name, " ", "_")
+			if step.Response.JSON != "" && step.Response.Headers == nil {
+				step.Response.Headers = map[string]string{
+					"Content-Type": "application/json",
+				}
+			}
 
 			performStep(t, handler, step, cfg, ctxMap)
 		}
