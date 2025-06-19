@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -20,7 +21,18 @@ func ExecuteRequest(t *testing.T, step Step, handler http.Handler, ctxMap map[st
 	step.Request = renderRequest(step.Request, ctxMap)
 
 	var body io.Reader
-	if step.Request.Body != nil {
+	if step.Request.BodyFile != "" {
+		bodyData, err := os.ReadFile(step.Request.BodyFile)
+		if err != nil {
+			httpErr := NewError(ErrHTTP, op, "failed to read request body file").
+				WithContext("step", step.Name).
+				WithContext("error", err.Error())
+			t.Fatalf("%+v", httpErr)
+		}
+		body = bytes.NewReader(bodyData)
+	} else if step.Request.BodyRaw != "" {
+		body = strings.NewReader(step.Request.BodyRaw)
+	} else if step.Request.Body != nil {
 		b, err := json.Marshal(step.Request.Body)
 		if err != nil {
 			httpErr := NewError(ErrHTTP, op, "failed to marshal request body").

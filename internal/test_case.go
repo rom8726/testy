@@ -16,10 +16,12 @@ type Step struct {
 }
 
 type RequestSpec struct {
-	Method  string            `yaml:"method"`
-	Path    string            `yaml:"path"`
-	Headers map[string]string `yaml:"headers"`
-	Body    any               `yaml:"body"`
+	Method   string            `yaml:"method"`
+	Path     string            `yaml:"path"`
+	Headers  map[string]string `yaml:"headers"`
+	Body     any               `yaml:"body"`
+	BodyFile string            `yaml:"bodyFile"`
+	BodyRaw  string            `yaml:"bodyRaw"`
 }
 
 type ResponseSpec struct {
