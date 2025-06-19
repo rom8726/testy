@@ -68,8 +68,8 @@ func AssertResponse(
 			recordedHeader := respRecorder.Header().Get(k)
 			expectedHeader := v
 
-			if recordedHeader != expectedHeader ||
-				!strings.Contains(recordedHeader, expectedHeader) ||
+			if recordedHeader != expectedHeader &&
+				!strings.Contains(recordedHeader, expectedHeader) &&
 				!strings.Contains(expectedHeader, recordedHeader) {
 				httpErr := NewError(ErrHTTP, op, "unexpected response header").
 					WithContext("expected", v).
