@@ -62,6 +62,18 @@ func AssertResponse(
 ) {
 	t.Helper()
 	const op = "AssertResponse"
+
+	if expected.Headers != nil {
+		for k, v := range expected.Headers {
+			if respRecorder.Header().Get(k) != v {
+				httpErr := NewError(ErrHTTP, op, "unexpected response header").
+					WithContext("expected", v).
+					WithContext("actual", respRecorder.Header().Get(k))
+				t.Fatalf("%+v", httpErr)
+			}
+		}
+	}
+
 	body := respRecorder.Body.String()
 
 	if respRecorder.Result().StatusCode != expected.Status {

@@ -96,7 +96,7 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 	if rec != nil && rec.Body != nil {
 		respBody := rec.Body.Bytes()
 		if len(respBody) > 0 {
-			if rec.Header().Get("Content-Type") == "application/json" {
+			if step.Response.Headers != nil && step.Response.Headers["Content-Type"] == "application/json" {
 				var jsonData any
 				if err := json.Unmarshal(respBody, &jsonData); err != nil {
 					jsonErr := NewError(ErrHTTP, op, "failed to parse response JSON").

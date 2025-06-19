@@ -23,6 +23,8 @@ func NewServer(connStr string) *Server {
 	authKeys := map[string]struct{}{}
 
 	router.POST("/auth", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
+		writer.Header().Set("Content-Type", "application/json")
+
 		type authRequest struct {
 			Username string `json:"username"`
 			Password string `json:"password"`
@@ -54,6 +56,8 @@ func NewServer(connStr string) *Server {
 	})
 
 	router.POST("/users/add", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
+		writer.Header().Set("Content-Type", "application/json")
+
 		defer func() {
 			if r := recover(); r != nil {
 				writer.WriteHeader(http.StatusInternalServerError)
@@ -104,6 +108,8 @@ func NewServer(connStr string) *Server {
 	})
 
 	router.GET("/users", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
+		writer.Header().Set("Content-Type", "application/json")
+
 		defer func() {
 			if r := recover(); r != nil {
 				writer.WriteHeader(http.StatusInternalServerError)
@@ -157,6 +163,8 @@ func NewServer(connStr string) *Server {
 	})
 
 	router.GET("/user/:user_id", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
+		writer.Header().Set("Content-Type", "application/json")
+
 		defer func() {
 			if r := recover(); r != nil {
 				writer.WriteHeader(http.StatusInternalServerError)

@@ -9,6 +9,7 @@
           path: /send
           response:
             status: 202
+            headers: {"Content-Type": "application/json"}
             json: '{"status":"queued"}'
 
   mockCalls:
@@ -30,6 +31,7 @@
         body: {"username":"user", "password":"password"}
       response:
         status: 200
+        headers: {"Content-Type": "application/json"}
     - name: get_users
       request:
         method: GET
@@ -38,6 +40,7 @@
           Authorization: '{{auth.response.token}}'
       response:
         status: 200
+        headers: {"Content-Type": "application/json"}
         json: |
           {
             "users": [
@@ -55,6 +58,7 @@
         body: {"name":"Joseph"}
       response:
         status: 200
+        headers: {"Content-Type": "application/json"}
       dbChecks:
         - query: SELECT COUNT(*) AS count FROM users
           result: |
@@ -75,6 +79,7 @@
           Authorization: '{{auth.response.token}}'
       response:
         status: 200
+        headers: {"Content-Type": "application/json"}
         json: |
           {
             "users": [
@@ -91,6 +96,7 @@
           Authorization: '{{auth.response.token}}'
       response:
         status: 200
+        headers: {"Content-Type": "application/json"}
         json: '{"id": 3, "name": "Joseph"}'
       dbChecks:
         - query: SELECT id, name FROM users WHERE id = {{get_users_again.response.users[2].id}}
