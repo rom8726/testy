@@ -42,26 +42,22 @@ jobs:
       run: go mod download
 
     - name: Run tests with coverage
-      run: go test -v -coverprofile=coverage.out ./internal/...
+      run: go test -covermode atomic -coverprofile=covprofile ./internal/...
       env:
         TEST_DB: "postgres://user:password@localhost:5432/db?sslmode=disable"
 
-    - name: Generate coverage report
-      run: go tool cover -html=coverage.out -o coverage.html
+#    - name: Run example tests
+#      run: |
+#        PGPASSWORD=password psql -h localhost -U user -d db -f example/migration.sql
+#        cd example
+#        go mod download
+#        go test -v ./...
+#      env:
+#        TEST_DB: "postgres://user:password@localhost:5432/db?sslmode=disable"
 
-#    - name: Upload coverage report
-#      uses: actions/upload-artifact@v3
-#      if: success()
-#      with:
-#        name: coverage-report
-#        path: coverage.html
-#        if-no-files-found: warn
-
-    - name: Run example tests
-      run: |
-        PGPASSWORD=password psql -h localhost -U user -d db -f example/migration.sql
-        cd example
-        go mod download
-        go test -v ./...
+    - name: Install goveralls
+      run: go install github.com/mattn/goveralls@latest
+    - name: Send coverage
       env:
-        TEST_DB: "postgres://user:password@localhost:5432/db?sslmode=disable"
+        COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+      run: goveralls -coverprofile=covprofile -service=github
