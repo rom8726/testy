@@ -78,6 +78,7 @@ github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c h1:ncq/mPwQF
 github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c/go.mod h1:OmDBASR4679mdNQnz2pUhc2G8CO2JrUAVFDRBDP/hJE=
 github.com/rom8726/pgfixtures v1.2.0 h1:BA4/ZgTNW9k4bbLjy9AG3uLrWjFzvH/r5qN6XMpkYF8=
 github.com/rom8726/pgfixtures v1.2.0/go.mod h1:aEbnlpmFgv9OnWXOQSWpe7DpiC5v6WzlAZU9OAcXK2Y=
+github.com/rom8726/pgfixtures v1.3.0/go.mod h1:aEbnlpmFgv9OnWXOQSWpe7DpiC5v6WzlAZU9OAcXK2Y=
 github.com/shirou/gopsutil/v4 v4.25.1 h1:QSWkTc+fu9LTAWfkZwZ6j8MSUk4A2LV7rbH0ZqmLjXs=
 github.com/shirou/gopsutil/v4 v4.25.1/go.mod h1:RoUCUpndaJFtT+2zsZzzmhvbfGoDCJ7nFXKJf8GqJbI=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
