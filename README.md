@@ -1,6 +1,7 @@
 # testy
 
-[//]: # ([![Go Tests]&#40;https://github.com/rom8726/testy/actions/workflows/go-test.yml/badge.svg&#41;]&#40;https://github.com/rom8726/testy/actions/workflows/go-test.yml&#41;)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rom8726/testy.svg)](https://pkg.go.dev/github.com/rom8726/testy)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rom8726/testy)](https://goreportcard.com/report/github.com/rom8726/testy)
 
 A tiny functional-testing framework for HTTP handlers written in Go.
 It lets you describe end-to-end scenarios in YAML, automatically:
