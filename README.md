@@ -4,7 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/rom8726/testy)](https://goreportcard.com/report/github.com/rom8726/testy)
 [![Coverage Status](https://coveralls.io/repos/github/rom8726/testy/badge.svg?branch=main)](https://coveralls.io/github/rom8726/testy?branch=main)
 
-[![boosty-cozy](https://gideonwhite1029.github.io/badges/cozy-boosty_vector.svg)](https://gideonwhite1029.github.io/badges/cozy-boosty_vector.svg)
+[![boosty-cozy](https://gideonwhite1029.github.io/badges/cozy-boosty_vector.svg)](https://boosty.to/dev-tools-hacker)
 
 A tiny functional-testing framework for HTTP handlers written in Go.
 It lets you describe end-to-end scenarios in YAML, automatically:
