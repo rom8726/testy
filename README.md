@@ -65,6 +65,8 @@ Directory layout:
           email: "alice@example.com"
       response:
         status: 201
+        headers:
+          Content-Type: application/json
         json: |
           {
             "id":        "<<PRESENCE>>",
@@ -78,6 +80,8 @@ Directory layout:
         path:   /users/{{create_user.response.id}}     # pulls "id" from the previous response
       response:
         status: 200
+        headers:
+          Content-Type: application/json
         json: |
           {
             "id":   "{{create_user.response.id}}",
@@ -98,6 +102,8 @@ Directory layout:
         - query:  SELECT email FROM users WHERE id = {{create_user.response.id}}
           result: '[{ "email":"alice+new@example.com" }]'
 ```
+
+Note: you should point Content-Type header in response section to right parsing.
 
 How the placeholders work:
 
@@ -178,7 +184,9 @@ mockServers:
         path: /send
         response:
           status: 202
-          json: '{"status":"queued"}'
+        headers:
+          Content-Type: application/json
+        json: '{"status":"queued"}'
 
 mockCalls:
   - mock: notification
@@ -242,6 +250,8 @@ The framework only needs:
 
       response:
         status: integer
+        headers:
+          Content-Type: application/json
         json:   string             # optional, must be valid JSON
 
       dbChecks:                    # optional, list
