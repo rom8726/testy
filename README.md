@@ -103,7 +103,7 @@ Directory layout:
           result: '[{ "email":"alice+new@example.com" }]'
 ```
 
-Note: you should point Content-Type header in response section to right parsing.
+> *NOTE:* you should point the Content-Type header in response to the section to right parsing.
 
 How the placeholders work:
 
