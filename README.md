@@ -17,6 +17,8 @@ It lets you describe end-to-end scenarios in YAML, automatically:
 
 Only PostgreSQL and MySQL are supported.
 
+<img src="docs/logo.png" width="500" alt="Testy logo">
+
 ---
 
 ## Why another testing tool?
