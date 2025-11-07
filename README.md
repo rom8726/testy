@@ -15,7 +15,7 @@ It lets you describe end-to-end scenarios in YAML, automatically:
 * executes SQL checks after each step
 * spins up lightweight HTTP mocks and verifies outbound calls
 
-Only PostgreSQL is supported.
+Only PostgreSQL and MySQL are supported.
 
 ---
 
@@ -261,6 +261,77 @@ The framework only needs:
 
 ---
 
+## YAML schema for scenarios (IDE support)
+
+The repository provides `testy.json` — a JSON Schema for Testy YAML scenarios. You can attach it in your IDE to get:
+
+- key auto-completion
+- live validation and error highlighting (types, required fields, HTTP method enums, etc.)
+
+To enable automatic validation, create your scenario files with one of these extensions:
+
+- `.testy.yml`
+- `.testy.yaml`
+
+These patterns are used in the examples below when mapping the schema.
+
+### GoLand / IntelliJ IDEA (JetBrains)
+
+1) Open: Preferences | Languages & Frameworks | Schemas and DTDs | JSON Schema.
+2) Click "+" and choose "User schema".
+3) Set the schema file to `testy.json` at the project root, or use the raw GitHub URL:
+   `https://raw.githubusercontent.com/rom8726/testy/main/testy.json`.
+4) In "Schema mappings" add file patterns, for example:
+   - `*.testy.yml`
+   - `*.testy.yaml`
+   - (optional) the whole `tests/cases` folder
+5) Apply settings. Validation and completion will work in your YAML scenario files.
+
+Notes:
+- JetBrains IDEs can apply JSON Schema to YAML files (not just JSON).
+- The schema targets draft-07 (supported by IDEs by default).
+
+### VS Code
+
+1) Install the "YAML" extension (Red Hat) — it supports mapping JSON Schema to YAML.
+2) Add a mapping in `.vscode/settings.json` (or in global Settings → search: yaml.schemas):
+
+```json
+{
+  "yaml.schemas": {
+    "./testy.json": [
+      "**/*.testy.yml",
+      "**/*.testy.yaml"
+    ]
+  }
+}
+```
+
+Alternatively, use the URL:
+
+```json
+{
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/rom8726/testy/main/testy.json": [
+      "**/*.testy.yml",
+      "**/*.testy.yaml"
+    ]
+  }
+}
+```
+
+After this, VS Code will validate and auto-complete fields in Testy YAML scenarios.
+
+### What the schema covers
+
+- File root is an array of scenarios.
+- Types/requirements for `name`, `fixtures`, `mockServers`, `mockCalls`, `steps[*].request`, `steps[*].response`, `steps[*].dbChecks`.
+- Enumerations for HTTP methods (`GET`, `POST`, ...); status code range `100..599`.
+- Body fields allow placeholders similar to Testy runtime behavior.
+
+---
+
 ## License
 
 Apache-2.0 License
+
