@@ -21,6 +21,27 @@ Only PostgreSQL and MySQL are supported.
 
 ---
 
+## Table of Contents / Оглавление
+
+- [Why another testing tool?](#why-another-testing-tool)
+- [Installation](#installation)
+- [Quick example](#quick-example)
+  - [1. Multi-step YAML case (tests/cases/user_flow.yml)](#1-multi-step-yaml-case-testscasesuser_flowyml)
+  - [2. Go test (tests/api_test.go)](#2-go-test-testsapitestgo)
+- [Features](#features)
+  - [Declarative scenarios](#declarative-scenarios)
+  - [PostgreSQL fixtures](#postgresql-fixtures)
+  - [Hooks](#hooks)
+  - [HTTP mocks (quick glance)](#http-mocks-quick-glance)
+  - [Zero reflection magic](#zero-reflection-magic)
+- [YAML reference](#yaml-reference)
+- [YAML schema for scenarios (IDE support)](#yaml-schema-for-scenarios-ide-support)
+  - [GoLand / IntelliJ IDEA (JetBrains)](#goland--intellij-idea-jetbrains)
+  - [VS Code](#vs-code)
+- [GoLand plugin](#goland-plugin)
+  - [What the schema covers](#what-the-schema-covers)
+- [License](#license)
+
 ## Why another testing tool?
 
 * Write tests in plain YAML — easy for both developers and QA.
@@ -323,6 +344,16 @@ Alternatively, use the URL:
 ```
 
 After this, VS Code will validate and auto-complete fields in Testy YAML scenarios.
+
+## GoLand plugin
+
+Enhance your workflow in JetBrains IDEs with the Testy Tests Viewer plugin.
+
+- Install from JetBrains Marketplace: Testy Tests Viewer
+  https://plugins.jetbrains.com/plugin/28969-testy-tests-viewer
+- Or install manually via “Install Plugin from Disk…” and select the testy-goland-plugin.zip
+
+The plugin provides a dedicated tests viewer for Testy scenarios.
 
 ### What the schema covers
 
