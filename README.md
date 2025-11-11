@@ -38,8 +38,8 @@ Only PostgreSQL and MySQL are supported.
 - [YAML schema for scenarios (IDE support)](#yaml-schema-for-scenarios-ide-support)
   - [GoLand / IntelliJ IDEA (JetBrains)](#goland--intellij-idea-jetbrains)
   - [VS Code](#vs-code)
-- [GoLand plugin](#goland-plugin)
   - [What the schema covers](#what-the-schema-covers)
+- [GoLand plugin](#goland-plugin)
 - [License](#license)
 
 ## Why another testing tool?
