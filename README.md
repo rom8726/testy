@@ -21,7 +21,7 @@ Only PostgreSQL and MySQL are supported.
 
 ---
 
-## Table of Contents / Оглавление
+## Table of Contents
 
 - [Why another testing tool?](#why-another-testing-tool)
 - [Installation](#installation)
@@ -345,6 +345,13 @@ Alternatively, use the URL:
 
 After this, VS Code will validate and auto-complete fields in Testy YAML scenarios.
 
+### What the schema covers
+
+- File root is an array of scenarios.
+- Types/requirements for `name`, `fixtures`, `mockServers`, `mockCalls`, `steps[*].request`, `steps[*].response`, `steps[*].dbChecks`.
+- Enumerations for HTTP methods (`GET`, `POST`, ...); status code range `100..599`.
+- Body fields allow placeholders similar to Testy runtime behavior.
+
 ## GoLand plugin
 
 Enhance your workflow in JetBrains IDEs with the Testy Tests Viewer plugin.
@@ -354,13 +361,6 @@ Enhance your workflow in JetBrains IDEs with the Testy Tests Viewer plugin.
 - Or install manually via “Install Plugin from Disk…” and select the testy-goland-plugin.zip
 
 The plugin provides a dedicated tests viewer for Testy scenarios.
-
-### What the schema covers
-
-- File root is an array of scenarios.
-- Types/requirements for `name`, `fixtures`, `mockServers`, `mockCalls`, `steps[*].request`, `steps[*].response`, `steps[*].dbChecks`.
-- Enumerations for HTTP methods (`GET`, `POST`, ...); status code range `100..599`.
-- Body fields allow placeholders similar to Testy runtime behavior.
 
 ---
 
