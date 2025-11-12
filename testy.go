@@ -26,6 +26,10 @@ type Config struct {
 func Run(t *testing.T, cfg *Config) {
 	t.Helper()
 
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Configuration validation failed: %v", err)
+	}
+
 	cases, err := internal.LoadTestCases(cfg.CasesDir)
 	if err != nil {
 		// Use the error directly since it's already wrapped by LoadTestCases
