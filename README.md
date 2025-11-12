@@ -257,29 +257,92 @@ The framework only needs:
 ```yaml
 - name: string
 
-  fixtures:            # optional, order matters
-    - fixture-file     # without ".yml" extension
+  variables:                 # optional, test-level variables
+    key: value
+
+  fixtures:                  # optional, order matters
+    - fixture-file           # without ".yml" extension
+
+  setup:                     # optional, runs before steps
+    - name: string           # optional hook name
+      sql: SQL string        # SQL query to execute
+    - http:                  # HTTP request hook
+        method: POST
+        path: /admin/reset
+        headers:
+          X-Key: value
+
+  teardown:                  # optional, runs after steps (even on failure)
+    - sql: SQL string
+    - http: ...
 
   steps:
     - name: string
 
+      when: string           # optional, conditional execution
+      # examples: "{{status}} == active", "{{age}} >= 18"
+
+      loop:                  # optional, iterate over items or range
+        items: [...]         # list of items to iterate
+        var: itemName        # variable name for current item
+        # OR
+        range:               # numeric range
+          from: 1
+          to: 10
+          step: 1            # optional, default 1
+
+      retry:                 # optional, retry on failure
+        attempts: 3          # max number of attempts
+        backoff: exponential # constant | linear | exponential
+        initialDelay: 100ms  # first retry delay
+        maxDelay: 10s        # max delay for exponential
+        retryOn: [503, 429]  # retry only on these status codes
+        retryOnError: true   # retry on any error
+
       request:
         method:  GET | POST | PUT | PATCH | DELETE | ...
-        path:    string            # placeholders {{...}} allowed
-        headers:                   # optional
+        path:    string      # placeholders {{...}} allowed
+        headers:             # optional
           X-Token: "{{TOKEN}}"
-        body:                      # optional, any YAML\JSON
+        body:                # optional, any YAML\JSON
           userId: "123"
+          name: "{{faker.name}}"        # faker generators supported
+          email: "{{faker.email}}"
 
       response:
         status: integer
         headers:
           Content-Type: application/json
-        json:   string             # optional, must be valid JSON
+        json: string         # optional, must be valid JSON
 
-      dbChecks:                    # optional, list
-        - query:  SQL string       # placeholders {{...}} allowed
-          result: JSON|YAML        # expected rows as JSON array
+        schema: path/to/schema.json     # optional, external JSON Schema file
+
+        jsonSchema:          # optional, inline JSON Schema
+          type: object
+          required: [id, name]
+          properties:
+            id: {type: integer}
+            name: {type: string}
+
+        assertions:          # optional, enhanced assertions
+          - path: users[0].age          # JSON path
+            operator: greaterThan       # equals, notEquals, greaterThan, lessThan, 
+              # greaterOrEqual, lessOrEqual, between,
+              # contains, notContains, matches, startsWith,
+              # endsWith, in, notIn, isEmpty, isNotEmpty,
+            # hasLength, hasMinLength, hasMaxLength
+            value: 18
+            message: string   # optional, custom error message
+
+      performance:           # optional, performance constraints
+        maxDuration: 500ms   # max allowed duration
+        warnDuration: 200ms  # warning threshold
+        failOnWarning: false # fail test on warning
+        maxMemory: 256       # max memory in MB
+
+      dbChecks:              # optional, list
+        - query: SQL string  # placeholders {{...}} allowed
+          result: JSON|YAML  # expected rows as JSON array
 ```
 
 ---
