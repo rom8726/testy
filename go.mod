@@ -1,8 +1,9 @@
 module github.com/rom8726/testy
 
-go 1.24
+go 1.25
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kinbiko/jsonassert v1.2.0
 	github.com/lib/pq v1.10.9
