@@ -182,7 +182,7 @@ func ExecuteWithRetry(config *ParsedRetryConfig, fn RetryableFunc) RetryResult {
 		result.LastError = err
 
 		// Check if successful (no error and not a retry status)
-		if err == nil && !config.shouldRetryStatus(statusCode) {
+		if err == nil && statusCode < 400 && !config.shouldRetryStatus(statusCode) {
 			result.Success = true
 			result.TotalDuration = time.Since(startTime)
 			return result
