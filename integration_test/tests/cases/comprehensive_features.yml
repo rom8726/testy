@@ -1,0 +1,236 @@
+- name: comprehensive features test
+  variables:
+    minAge: 18
+    maxAge: 100
+
+  # No fixtures needed - we'll create data in the test
+
+  setup:
+    - name: cleanup_old_data
+      sql: DELETE FROM users WHERE name LIKE 'TestUser%'
+    - name: clear_cache
+      http:
+        method: POST
+        path: /admin/cache/clear
+        headers:
+          X-Admin-Key: "admin123"
+
+  mockServers:
+    notification:
+      routes:
+        - method: POST
+          path: /send
+          response:
+            status: 202
+            headers: {"Content-Type": "application/json"}
+            json: '{"status":"queued"}'
+
+  steps:
+    # Step 1: Authentication
+    - name: auth
+      request:
+        method: POST
+        path: /auth
+        headers:
+          Content-Type: application/json
+        body:
+          username: "user"
+          password: "password"
+      response:
+        status: 200
+        headers: {"Content-Type": "application/json"}
+        jsonSchema:
+          type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              minLength: 1
+        assertions:
+          - path: token
+            operator: isNotEmpty
+            message: "Token should not be empty"
+
+    # Step 2: Create users with loop and faker
+    - name: create_users
+      loop:
+        range:
+          from: 1
+          to: 5
+          step: 1
+        var: index
+      retry:
+        attempts: 3
+        backoff: exponential
+        initialDelay: 50ms
+        maxDelay: 1s
+        retryOnError: true
+      request:
+        method: POST
+        path: /users/add
+        headers:
+          Content-Type: application/json
+          Authorization: "{{auth.response.token}}"
+        body:
+          name: "TestUser{{index}}"
+      response:
+        status: 200
+        headers: {"Content-Type": "application/json"}
+      performance:
+        maxDuration: 500ms
+        warnDuration: 200ms
+        failOnWarning: false
+
+    # Step 3: Get users with conditional and assertions
+    - name: get_users
+      when: "{{auth.response.token}}"
+      retry:
+        attempts: 2
+        backoff: constant
+        initialDelay: 100ms
+        retryOn: [503, 429]
+      request:
+        method: GET
+        path: /users
+        headers:
+          Authorization: "{{auth.response.token}}"
+      response:
+        status: 200
+        headers: {"Content-Type": "application/json"}
+        jsonSchema:
+          type: object
+          required: [users]
+          properties:
+            users:
+              type: array
+              items:
+                type: object
+                required: [id, name]
+                properties:
+                  id: {type: integer}
+                  name: {type: string, minLength: 1}
+        assertions:
+          - path: users
+            operator: hasMinLength
+            value: 5
+            message: "Should have at least 5 users"
+          - path: users[0].id
+            operator: greaterThan
+            value: 0
+          - path: users[0].name
+            operator: contains
+            value: "TestUser"
+      performance:
+        maxDuration: 1s
+        warnDuration: 300ms
+      dbChecks:
+        - query: SELECT COUNT(*) as count FROM users WHERE name LIKE 'TestUser%'
+          result: '[{"count": 5}]'
+        - query: SELECT COUNT(*) as count FROM users
+          result: '[{"count": 5}]'
+
+    # Step 4: Get specific user with JSON path
+    - name: get_first_user
+      when: "{{get_users.response.users[0].id}} > 0"
+      request:
+        method: GET
+        path: /user/{{get_users.response.users[0].id}}
+        headers:
+          Authorization: "{{auth.response.token}}"
+      response:
+        status: 200
+        headers: {"Content-Type": "application/json"}
+        assertions:
+          - path: id
+            operator: equals
+            value: "{{get_users.response.users[0].id}}"
+          - path: name
+            operator: startsWith
+            value: "TestUser"
+          - path: name
+            operator: matches
+            value: "TestUser\\d+"
+      dbChecks:
+        - query: SELECT id, name FROM users WHERE id = {{get_users.response.users[0].id}}
+          result:
+            - id: "{{get_users.response.users[0].id}}"
+              name: "{{get_first_user.response.name}}"
+
+    # Step 5: Test with items loop
+    - name: create_special_users
+      loop:
+        items:
+          - "Alice"
+          - "Bob"
+          - "Charlie"
+        var: userName
+      request:
+        method: POST
+        path: /users/add
+        headers:
+          Content-Type: application/json
+          Authorization: "{{auth.response.token}}"
+        body:
+          name: "Special-{{userName}}"
+      response:
+        status: 200
+      performance:
+        maxDuration: 300ms
+
+    # Step 6: Verify all users with complex assertions
+    - name: verify_all_users
+      request:
+        method: GET
+        path: /users
+        headers:
+          Authorization: "{{auth.response.token}}"
+      response:
+        status: 200
+        assertions:
+          - path: users
+            operator: hasLength
+            value: 8
+            message: "Should have exactly 8 users (5 TestUser + 3 Special)"
+          - path: users
+            operator: hasMinLength
+            value: 5
+          - path: users
+            operator: hasMaxLength
+            value: 20
+          - path: users[0].id
+            operator: greaterOrEqual
+            value: 1
+          - path: users[0].id
+            operator: lessOrEqual
+            value: 1000
+          - path: users[0].name
+            operator: notContains
+            value: "Invalid"
+          - path: users[0].name
+            operator: isNotEmpty
+      dbChecks:
+        - query: SELECT COUNT(*) as count FROM users
+          result: |
+            [{"count": 8}]
+        - query: SELECT name FROM users WHERE name LIKE 'Special-%' ORDER BY name
+          result:
+            - name: "Special-Alice"
+            - name: "Special-Bob"
+            - name: "Special-Charlie"
+
+  mockCalls:
+    - mock: notification
+      count: 8
+      expect:
+        method: POST
+        path: /send
+
+  teardown:
+    - name: cleanup_test_data
+      sql: DELETE FROM users WHERE name LIKE 'TestUser%' OR name LIKE 'Special-%'
+    - name: final_cleanup
+      http:
+        method: POST
+        path: /admin/cache/clear
+        headers:
+          X-Admin-Key: "admin123"

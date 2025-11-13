@@ -65,14 +65,28 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 		// Setup hook executor
 		var db *sql.DB
 		var hookExecutor *HookExecutor
+		var testServer *httptest.Server
+
+		// Create test server for HTTP hooks if handler is provided
+		if handler != nil {
+			testServer = httptest.NewServer(handler)
+			defer testServer.Close()
+		}
+
 		if cfg.ConnStr != "" {
 			var err error
 			db, err = sql.Open("postgres", cfg.ConnStr)
 			if err == nil {
 				defer db.Close()
-				hookExecutor = NewHookExecutor(db, "")
 			}
 		}
+
+		// Create hook executor with test server URL if available
+		baseURL := ""
+		if testServer != nil {
+			baseURL = testServer.URL
+		}
+		hookExecutor = NewHookExecutor(db, baseURL)
 
 		// Execute setup hooks
 		if len(tc.Setup) > 0 && hookExecutor != nil {
@@ -284,7 +298,10 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 			t.Logf("Warning: cannot parse response for assertions: %v", err)
 		} else {
 			for _, assertion := range step.Response.Assertions {
-				if err := AssertResponseV2(assertion, responseData); err != nil {
+				// Render assertion value with context
+				renderedAssertion := assertion
+				renderedAssertion.Value = RenderAny(assertion.Value, ctxMap)
+				if err := AssertResponseV2(renderedAssertion, responseData); err != nil {
 					t.Errorf("Assertion failed: %v", err)
 				}
 			}
