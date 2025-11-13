@@ -51,7 +51,7 @@
             operator: isNotEmpty
             message: "Token should not be empty"
 
-    # Step 2: Create users with loop and faker
+    # Step 2: Create users with loop
     - name: create_users
       loop:
         range:
