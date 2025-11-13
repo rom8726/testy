@@ -13,11 +13,12 @@ import (
 	"github.com/kinbiko/jsonassert"
 )
 
-// ExecuteRequest performs an HTTP request against the given handler
+// ExecuteRequest performs an HTTP request with full rendering support
 func ExecuteRequest(t *testing.T, step Step, handler http.Handler, ctxMap map[string]any) *httptest.ResponseRecorder {
 	t.Helper()
 	const op = "ExecuteRequest"
 
+	// Render request with context and faker
 	step.Request = renderRequest(step.Request, ctxMap)
 
 	var body io.Reader
@@ -54,7 +55,7 @@ func ExecuteRequest(t *testing.T, step Step, handler http.Handler, ctxMap map[st
 	return rec
 }
 
-// AssertResponse checks if the HTTP response matches the expected response
+// AssertResponse checks HTTP response with legacy JSON assertion
 func AssertResponse(
 	t *testing.T,
 	respRecorder *httptest.ResponseRecorder,
@@ -63,6 +64,7 @@ func AssertResponse(
 	t.Helper()
 	const op = "AssertResponse"
 
+	// Check headers
 	if expected.Headers != nil {
 		for k, v := range expected.Headers {
 			recordedHeader := respRecorder.Header().Get(k)
@@ -81,6 +83,7 @@ func AssertResponse(
 
 	body := respRecorder.Body.String()
 
+	// Check status code
 	if respRecorder.Result().StatusCode != expected.Status {
 		httpErr := NewError(ErrHTTP, op, "unexpected status code").
 			WithContext("expected", expected.Status).
@@ -89,6 +92,7 @@ func AssertResponse(
 		t.Fatalf("%+v", httpErr)
 	}
 
+	// Check JSON (legacy format)
 	if expected.JSON != "" {
 		ja := jsonassert.New(t)
 		ja.Assert(body, expected.JSON)

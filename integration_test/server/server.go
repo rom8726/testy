@@ -1,4 +1,4 @@
-package testyexample
+package server
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/julienschmidt/httprouter"
+	_ "github.com/lib/pq"
 )
 
 type Server struct {
@@ -33,13 +34,11 @@ func NewServer(connStr string) *Server {
 		if err := json.NewDecoder(request.Body).Decode(&req); err != nil {
 			writer.WriteHeader(http.StatusBadRequest)
 			fmt.Println(err)
-
 			return
 		}
 
 		if req.Username != "user" || req.Password != "password" {
 			writer.WriteHeader(http.StatusUnauthorized)
-
 			return
 		}
 
@@ -51,8 +50,6 @@ func NewServer(connStr string) *Server {
 		}
 		resp := response{Token: authKey}
 		_ = json.NewEncoder(writer).Encode(resp)
-
-		return
 	})
 
 	router.POST("/users/add", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
@@ -68,7 +65,6 @@ func NewServer(connStr string) *Server {
 		token := request.Header.Get("Authorization")
 		if _, ok := authKeys[token]; !ok {
 			writer.WriteHeader(http.StatusUnauthorized)
-
 			return
 		}
 
@@ -103,8 +99,6 @@ func NewServer(connStr string) *Server {
 		}
 
 		writer.WriteHeader(http.StatusOK)
-
-		return
 	})
 
 	router.GET("/users", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
@@ -120,7 +114,6 @@ func NewServer(connStr string) *Server {
 		token := request.Header.Get("Authorization")
 		if _, ok := authKeys[token]; !ok {
 			writer.WriteHeader(http.StatusUnauthorized)
-
 			return
 		}
 
@@ -147,7 +140,6 @@ func NewServer(connStr string) *Server {
 			if err := rows.Scan(&user.ID, &user.Name); err != nil {
 				panic(err)
 			}
-
 			users = append(users, user)
 		}
 
@@ -158,15 +150,12 @@ func NewServer(connStr string) *Server {
 
 		writer.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(writer).Encode(targetResp)
-
-		return
 	})
 
 	router.POST("/admin/cache/clear", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(writer).Encode(map[string]string{"status": "cleared"})
-		return
 	})
 
 	router.GET("/user/:user_id", func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
@@ -182,7 +171,6 @@ func NewServer(connStr string) *Server {
 		token := request.Header.Get("Authorization")
 		if _, ok := authKeys[token]; !ok {
 			writer.WriteHeader(http.StatusUnauthorized)
-
 			return
 		}
 
@@ -208,8 +196,6 @@ func NewServer(connStr string) *Server {
 
 		writer.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(writer).Encode(resp)
-
-		return
 	})
 
 	return &Server{

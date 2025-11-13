@@ -1,9 +1,10 @@
-module testyexample
+module integration_test
 
 go 1.25
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/julienschmidt/httprouter v1.3.0
 	github.com/lib/pq v1.10.9
 	github.com/rom8726/pgfixtures v1.3.0
 	github.com/rom8726/testy/v2 v2.0.0
@@ -62,10 +63,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
-)
-
-require (
-	github.com/julienschmidt/httprouter v1.3.0
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

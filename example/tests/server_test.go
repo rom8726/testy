@@ -7,7 +7,7 @@ import (
 
 	"github.com/rom8726/pgfixtures"
 
-	"github.com/rom8726/testy"
+	"github.com/rom8726/testy/v2"
 
 	"testyexample"
 )

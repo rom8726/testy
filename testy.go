@@ -6,7 +6,7 @@ import (
 
 	"github.com/rom8726/pgfixtures"
 
-	"github.com/rom8726/testy/internal"
+	"github.com/rom8726/testy/v2/internal"
 )
 
 type Config struct {

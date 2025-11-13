@@ -6,7 +6,7 @@
 
 [![boosty-cozy](https://gideonwhite1029.github.io/badges/cozy-boosty_vector.svg)](https://boosty.to/dev-tools-hacker)
 
-A tiny functional-testing framework for HTTP handlers written in Go.
+A functional-testing framework for HTTP handlers written in Go.
 It lets you describe end-to-end scenarios in YAML, automatically:
 
 * runs the request against the given `http.Handler`
@@ -14,6 +14,9 @@ It lets you describe end-to-end scenarios in YAML, automatically:
 * loads database fixtures before the scenario
 * executes SQL checks after each step
 * spins up lightweight HTTP mocks and verifies outbound calls
+* supports conditional execution, loops, retries, and performance monitoring (v2.0)
+* validates responses with JSON Schema (v2.0)
+* generates realistic test data with faker functions (v2.0)
 
 Only PostgreSQL and MySQL are supported.
 
@@ -53,7 +56,7 @@ Only PostgreSQL and MySQL are supported.
 
 ## Installation
 ```bash
-go get github.com/rom8726/testy@latest
+go get github.com/rom8726/testy/v2@latest
 ```
 
 Add the package under test (your web-application) to `go.mod` as usual.
@@ -145,7 +148,7 @@ import (
   "testing"
 
   "project/api"
-  "github.com/rom8726/testy"
+  "github.com/rom8726/testy/v2"
 )
 
 func TestAPI(t *testing.T) {
@@ -179,13 +182,60 @@ go test ./...
     * run one or more **DB checks** — SQL + expected JSON\YAML rows.
     * fire and assert HTTP **mocks** for outgoing calls
 
+### v2.0 New Features
+
+**Conditional Test Execution**
+* Execute steps conditionally based on runtime values
+* Support for comparison operators (`==`, `!=`, `>`, `<`, `>=`, `<=`)
+* Truthy/falsy checks for dynamic test flows
+
+**Looping Support**
+* Iterate over arrays or numeric ranges
+* Reduce test duplication for similar operations
+* Access loop index and current item in templates
+
+**Enhanced Assertions**
+* 20+ assertion operators for comprehensive validation
+* Numeric comparisons, string operations, collection checks
+* Custom error messages for better debugging
+
+**JSON Schema Validation**
+* Full JSON Schema Draft 7 support
+* Inline or external schema files
+* Comprehensive validation rules
+
+**Retry Mechanism**
+* Three backoff strategies: constant, linear, exponential
+* Retry on specific status codes or errors
+* Improves test reliability in flaky conditions
+
+**Setup and Teardown Hooks**
+* SQL hooks for database preparation and cleanup
+* HTTP hooks for API setup operations
+* Execute before and after test case execution
+
+**Test Data Generators (Faker)**
+* 50+ data generators for realistic test data
+* Names, emails, phones, addresses, dates, UUIDs
+* Reduces manual test data creation
+
+**Performance Assertions**
+* Request duration limits with warnings
+* Throughput validation
+* Memory usage constraints
+
+**JSON Path Support**
+* Navigate nested JSON structures
+* Extract values from complex responses
+* Use in subsequent test steps
+
 ### PostgreSQL fixtures
 Loaded with [`rom8726/pgfixtures`](https://github.com/rom8726/pgfixtures):
 
 * One YML file per table (or group of tables)
 * Auto-truncate and sequence reset before inserting
 
-### Hooks
+### Request Hooks
 Optional pre/post request hooks to stub time, clean caches, etc.:
 ```go
 testy.Run(t, &testy.Config{
@@ -257,29 +307,119 @@ The framework only needs:
 ```yaml
 - name: string
 
-  fixtures:            # optional, order matters
-    - fixture-file     # without ".yml" extension
+  variables:                 # optional, test-level variables
+    key: value
+
+  fixtures:                  # optional, order matters
+    - fixture-file           # without ".yml" extension
+
+  setup:                     # optional, runs before steps
+    - name: string           # optional hook name
+      sql: SQL string        # SQL query to execute
+    - http:                  # HTTP request hook
+        method: POST
+        path: /admin/reset
+        headers:
+          X-Key: value
+
+  teardown:                  # optional, runs after steps (even on failure)
+    - sql: SQL string
+    - http: ...
 
   steps:
     - name: string
 
+      when: string           # optional, conditional execution
+      # examples: "{{status}} == active", "{{age}} >= 18"
+
+      loop:                  # optional, iterate over items or range
+        items: [...]         # list of items to iterate
+        var: itemName        # variable name for current item
+        # OR
+        range:               # numeric range
+          from: 1
+          to: 10
+          step: 1            # optional, default 1
+
+      retry:                 # optional, retry on failure
+        attempts: 3          # max number of attempts
+        backoff: exponential # constant | linear | exponential
+        initialDelay: 100ms  # first retry delay
+        maxDelay: 10s        # max delay for exponential
+        retryOn: [503, 429]  # retry only on these status codes
+        retryOnError: true   # retry on any error
+
       request:
         method:  GET | POST | PUT | PATCH | DELETE | ...
-        path:    string            # placeholders {{...}} allowed
-        headers:                   # optional
+        path:    string      # placeholders {{...}} allowed
+        headers:             # optional
           X-Token: "{{TOKEN}}"
-        body:                      # optional, any YAML\JSON
+        body:                # optional, any YAML\JSON
           userId: "123"
+          name: "{{faker.name}}"        # faker generators supported
+          email: "{{faker.email}}"
+          # Available faker functions:
+          # - {{faker.uuid}}, {{faker.uuid.v4}} (UUID)
+          # - {{faker.name}}, {{faker.firstName}}, {{faker.lastName}}, {{faker.fullName}} (names)
+          # - {{faker.email}}, {{faker.username}}, {{faker.domain}}, {{faker.url}}, {{faker.ipv4}} (internet)
+          # - {{faker.phone}}, {{faker.phoneNumber}} (phone)
+          # - {{faker.city}}, {{faker.street}}, {{faker.country}}, {{faker.zipCode}} (address)
+          # - {{faker.date}}, {{faker.time}}, {{faker.timestamp}}, {{faker.now}} (date/time)
+          # - {{faker.number}}, {{faker.integer}}, {{faker.float}}, {{faker.digit}} (numbers)
+          # - {{faker.word}}, {{faker.words}}, {{faker.sentence}}, {{faker.paragraph}} (text)
+          # - {{faker.company}}, {{faker.companyName}} (company)
+          # - {{faker.random.string}}, {{faker.random.int}}, {{faker.random.bool}} (random)
 
       response:
         status: integer
         headers:
           Content-Type: application/json
-        json:   string             # optional, must be valid JSON
+        json: string         # optional, must be valid JSON
 
-      dbChecks:                    # optional, list
-        - query:  SQL string       # placeholders {{...}} allowed
-          result: JSON|YAML        # expected rows as JSON array
+        schema: path/to/schema.json     # optional, external JSON Schema file
+
+        jsonSchema:          # optional, inline JSON Schema
+          type: object
+          required: [id, name]
+          properties:
+            id: {type: integer}
+            name: {type: string}
+
+        assertions:          # optional, enhanced assertions
+          - path: users[0].age          # JSON path (supports dot notation and array indexing)
+            operator: greaterThan       # Available operators:
+              # - equals, eq, == (equality check)
+              # - notEquals, ne, != (inequality check)
+              # - greaterThan, gt, > (numeric comparison)
+              # - lessThan, lt, < (numeric comparison)
+              # - greaterOrEqual, gte, >= (numeric comparison)
+              # - lessOrEqual, lte, <= (numeric comparison)
+              # - between (value must be between two numbers: [min, max])
+              # - contains (string/array contains value)
+              # - notContains (string/array does not contain value)
+              # - matches (regex pattern matching)
+              # - startsWith (string starts with value)
+              # - endsWith (string ends with value)
+              # - in (value is in array)
+              # - notIn (value is not in array)
+              # - isEmpty (value is empty)
+              # - isNotEmpty (value is not empty)
+              # - hasLength (exact length check)
+              # - hasMinLength (minimum length check)
+              # - hasMaxLength (maximum length check)
+            value: 18                   # expected value (for between: [min, max] array)
+            message: string             # optional, custom error message
+
+      performance:           # optional, performance constraints
+        maxDuration: 500ms   # max allowed duration
+        warnDuration: 200ms  # warning threshold
+        failOnWarning: false # fail test on warning
+        maxMemory: 256       # max memory in MB
+        minThroughput: 10    # minimum requests per second (for batch operations)
+
+      dbChecks:              # optional, list
+        - query: SQL string  # placeholders {{...}} allowed
+          result: JSON|YAML  # expected rows as JSON array
 ```
 
 ---
