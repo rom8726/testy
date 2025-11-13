@@ -139,8 +139,11 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 	t.Helper()
 	const op = "performStep"
 
-	// Expand faker placeholders in context
-	ctxMap = expandFakerInContext(ctxMap)
+	// Expand faker placeholders in context (modify in place to preserve extracted fields)
+	expanded := expandFakerInContext(ctxMap)
+	for k, v := range expanded {
+		ctxMap[k] = v
+	}
 
 	// BeforeReq hook
 	if cfg.BeforeReq != nil {
@@ -222,7 +225,15 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 	if rec != nil && rec.Body != nil {
 		respBody := rec.Body.Bytes()
 		if len(respBody) > 0 {
-			if step.Response.Headers != nil && strings.HasPrefix(step.Response.Headers["Content-Type"], "application/json") {
+			// Check actual response Content-Type header, not expected one
+			contentType := rec.Header().Get("Content-Type")
+			if contentType == "" {
+				// Fallback to expected headers if actual header is not set
+				if step.Response.Headers != nil {
+					contentType = step.Response.Headers["Content-Type"]
+				}
+			}
+			if strings.HasPrefix(contentType, "application/json") {
 				var jsonData any
 				if err := json.Unmarshal(respBody, &jsonData); err != nil {
 					jsonErr := NewError(ErrHTTP, op, "failed to parse response JSON").
