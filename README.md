@@ -308,6 +308,17 @@ The framework only needs:
           userId: "123"
           name: "{{faker.name}}"        # faker generators supported
           email: "{{faker.email}}"
+          # Available faker functions:
+          # - {{faker.uuid}}, {{faker.uuid.v4}} (UUID)
+          # - {{faker.name}}, {{faker.firstName}}, {{faker.lastName}}, {{faker.fullName}} (names)
+          # - {{faker.email}}, {{faker.username}}, {{faker.domain}}, {{faker.url}}, {{faker.ipv4}} (internet)
+          # - {{faker.phone}}, {{faker.phoneNumber}} (phone)
+          # - {{faker.city}}, {{faker.street}}, {{faker.country}}, {{faker.zipCode}} (address)
+          # - {{faker.date}}, {{faker.time}}, {{faker.timestamp}}, {{faker.now}} (date/time)
+          # - {{faker.number}}, {{faker.integer}}, {{faker.float}}, {{faker.digit}} (numbers)
+          # - {{faker.word}}, {{faker.words}}, {{faker.sentence}}, {{faker.paragraph}} (text)
+          # - {{faker.company}}, {{faker.companyName}} (company)
+          # - {{faker.random.string}}, {{faker.random.int}}, {{faker.random.bool}} (random)
 
       response:
         status: integer
@@ -325,20 +336,36 @@ The framework only needs:
             name: {type: string}
 
         assertions:          # optional, enhanced assertions
-          - path: users[0].age          # JSON path
-            operator: greaterThan       # equals, notEquals, greaterThan, lessThan, 
-              # greaterOrEqual, lessOrEqual, between,
-              # contains, notContains, matches, startsWith,
-              # endsWith, in, notIn, isEmpty, isNotEmpty,
-            # hasLength, hasMinLength, hasMaxLength
-            value: 18
-            message: string   # optional, custom error message
+          - path: users[0].age          # JSON path (supports dot notation and array indexing)
+            operator: greaterThan       # Available operators:
+              # - equals, eq, == (equality check)
+              # - notEquals, ne, != (inequality check)
+              # - greaterThan, gt, > (numeric comparison)
+              # - lessThan, lt, < (numeric comparison)
+              # - greaterOrEqual, gte, >= (numeric comparison)
+              # - lessOrEqual, lte, <= (numeric comparison)
+              # - between (value must be between two numbers: [min, max])
+              # - contains (string/array contains value)
+              # - notContains (string/array does not contain value)
+              # - matches (regex pattern matching)
+              # - startsWith (string starts with value)
+              # - endsWith (string ends with value)
+              # - in (value is in array)
+              # - notIn (value is not in array)
+              # - isEmpty (value is empty)
+              # - isNotEmpty (value is not empty)
+              # - hasLength (exact length check)
+              # - hasMinLength (minimum length check)
+              # - hasMaxLength (maximum length check)
+            value: 18                   # expected value (for between: [min, max] array)
+            message: string             # optional, custom error message
 
       performance:           # optional, performance constraints
         maxDuration: 500ms   # max allowed duration
         warnDuration: 200ms  # warning threshold
         failOnWarning: false # fail test on warning
         maxMemory: 256       # max memory in MB
+        minThroughput: 10    # minimum requests per second (for batch operations)
 
       dbChecks:              # optional, list
         - query: SQL string  # placeholders {{...}} allowed
