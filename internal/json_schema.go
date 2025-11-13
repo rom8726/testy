@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 )
 
 // JSONSchema represents a JSON Schema for response validation
@@ -159,14 +158,15 @@ func validateObject(data map[string]any, schema JSONSchema, path string) []Schem
 			// Check additionalProperties
 			if schema.AdditionalProperties != nil && !*schema.AdditionalProperties {
 				errors = append(errors, SchemaValidationError{
-					Path:    filepath.Join(path, key),
+					Path:    fmt.Sprintf("%s/%s", path, key),
 					Message: "additional property not allowed",
 				})
 			}
+
 			continue
 		}
 
-		propPath := filepath.Join(path, key)
+		propPath := fmt.Sprintf("%s/%s", path, key)
 		errors = append(errors, ValidateJSONSchema(value, propSchema, propPath)...)
 	}
 
