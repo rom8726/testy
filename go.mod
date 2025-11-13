@@ -1,4 +1,4 @@
-module github.com/rom8726/testy
+module github.com/rom8726/testy/v2
 
 go 1.25
 

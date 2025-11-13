@@ -3,7 +3,7 @@ package testy
 import (
 	"net/http/httptest"
 
-	"github.com/rom8726/testy/internal"
+	"github.com/rom8726/testy/v2/internal"
 )
 
 type MockInstance struct {

@@ -16,7 +16,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/rom8726/testy"
+	"github.com/rom8726/testy/v2"
 
 	"testyexample"
 )
