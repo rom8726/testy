@@ -6,7 +6,7 @@
 
 [![boosty-cozy](https://gideonwhite1029.github.io/badges/cozy-boosty_vector.svg)](https://boosty.to/dev-tools-hacker)
 
-A tiny functional-testing framework for HTTP handlers written in Go.
+A functional-testing framework for HTTP handlers written in Go.
 It lets you describe end-to-end scenarios in YAML, automatically:
 
 * runs the request against the given `http.Handler`
@@ -14,6 +14,9 @@ It lets you describe end-to-end scenarios in YAML, automatically:
 * loads database fixtures before the scenario
 * executes SQL checks after each step
 * spins up lightweight HTTP mocks and verifies outbound calls
+* supports conditional execution, loops, retries, and performance monitoring (v2.0)
+* validates responses with JSON Schema (v2.0)
+* generates realistic test data with faker functions (v2.0)
 
 Only PostgreSQL and MySQL are supported.
 
@@ -179,13 +182,60 @@ go test ./...
     * run one or more **DB checks** — SQL + expected JSON\YAML rows.
     * fire and assert HTTP **mocks** for outgoing calls
 
+### v2.0 New Features
+
+**Conditional Test Execution**
+* Execute steps conditionally based on runtime values
+* Support for comparison operators (`==`, `!=`, `>`, `<`, `>=`, `<=`)
+* Truthy/falsy checks for dynamic test flows
+
+**Looping Support**
+* Iterate over arrays or numeric ranges
+* Reduce test duplication for similar operations
+* Access loop index and current item in templates
+
+**Enhanced Assertions**
+* 20+ assertion operators for comprehensive validation
+* Numeric comparisons, string operations, collection checks
+* Custom error messages for better debugging
+
+**JSON Schema Validation**
+* Full JSON Schema Draft 7 support
+* Inline or external schema files
+* Comprehensive validation rules
+
+**Retry Mechanism**
+* Three backoff strategies: constant, linear, exponential
+* Retry on specific status codes or errors
+* Improves test reliability in flaky conditions
+
+**Setup and Teardown Hooks**
+* SQL hooks for database preparation and cleanup
+* HTTP hooks for API setup operations
+* Execute before and after test case execution
+
+**Test Data Generators (Faker)**
+* 50+ data generators for realistic test data
+* Names, emails, phones, addresses, dates, UUIDs
+* Reduces manual test data creation
+
+**Performance Assertions**
+* Request duration limits with warnings
+* Throughput validation
+* Memory usage constraints
+
+**JSON Path Support**
+* Navigate nested JSON structures
+* Extract values from complex responses
+* Use in subsequent test steps
+
 ### PostgreSQL fixtures
 Loaded with [`rom8726/pgfixtures`](https://github.com/rom8726/pgfixtures):
 
 * One YML file per table (or group of tables)
 * Auto-truncate and sequence reset before inserting
 
-### Hooks
+### Request Hooks
 Optional pre/post request hooks to stub time, clean caches, etc.:
 ```go
 testy.Run(t, &testy.Config{
