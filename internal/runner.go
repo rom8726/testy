@@ -179,14 +179,47 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 			t.Fatalf("Failed to parse retry config: %v", err)
 		}
 
+		expectedStatus := step.Response.Status
 		result := ExecuteWithRetry(parsedRetry, func() (int, error) {
 			startTime := time.Now()
 			rec = ExecuteRequest(t, step, handler, ctxMap)
 			requestDuration = time.Since(startTime)
 
-			if rec.Code >= 400 {
-				return rec.Code, fmt.Errorf("HTTP error: %d", rec.Code)
+			// If status matches expected, it's not an error - proceed with validation
+			if rec.Code == expectedStatus {
+				return rec.Code, nil
 			}
+
+			// Status doesn't match expected - determine if we should retry
+			// If status is >= 400, check retry configuration
+			if rec.Code >= 400 {
+				// Check if this status code is configured for retry
+				shouldRetry := false
+				if len(parsedRetry.RetryOn) > 0 {
+					for _, retryCode := range parsedRetry.RetryOn {
+						if rec.Code == retryCode {
+							shouldRetry = true
+							break
+						}
+					}
+				}
+				// If retryOnError is true, retry on any error status that doesn't match expected
+				if parsedRetry.RetryOnError {
+					shouldRetry = true
+				}
+
+				// Return error if we should retry, otherwise return non-error
+				// ExecuteWithRetry will check ShouldRetry to decide whether to retry
+				if shouldRetry {
+					return rec.Code, fmt.Errorf("HTTP error: %d (expected: %d)", rec.Code, expectedStatus)
+				}
+				// Status doesn't match and not configured for retry - return as non-error
+				// ExecuteWithRetry won't retry, and AssertResponse will catch the mismatch
+				return rec.Code, nil
+			}
+
+			// Status < 400 but doesn't match expected - not a retry case
+			// Return as non-error - AssertResponse will catch the mismatch
 			return rec.Code, nil
 		})
 
