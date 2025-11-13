@@ -51,8 +51,8 @@ func TestComprehensiveFeatures(t *testing.T) {
 		t.Fatalf("failed to get connection string: %v", err)
 	}
 	// Convert postgres:// to postgresql:// for compatibility with lib/pq
-	if len(connStr) > 8 && connStr[:8] == "postgres:" && connStr[8:9] != "q" {
-		connStr = "postgresql" + connStr[8:]
+	if len(connStr) >= 11 && connStr[:11] == "postgres://" {
+		connStr = "postgresql://" + connStr[11:]
 	}
 
 	// Apply migration

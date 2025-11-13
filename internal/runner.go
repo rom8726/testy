@@ -77,7 +77,7 @@ func RunSingle(t *testing.T, handler http.Handler, tc TestCase, cfg *Config) Tes
 			var err error
 			db, err = sql.Open("postgres", cfg.ConnStr)
 			if err == nil {
-				defer db.Close()
+				defer func() { _ = db.Close() }()
 			}
 		}
 

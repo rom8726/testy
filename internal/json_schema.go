@@ -145,7 +145,7 @@ func validateObject(data map[string]any, schema JSONSchema, path string) []Schem
 	for _, required := range schema.Required {
 		if _, exists := data[required]; !exists {
 			errors = append(errors, SchemaValidationError{
-				Path:    filepath.Join(path, required),
+				Path:    fmt.Sprintf("%s/%s", path, required),
 				Message: "required field is missing",
 			})
 		}
