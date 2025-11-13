@@ -53,7 +53,7 @@ Only PostgreSQL and MySQL are supported.
 
 ## Installation
 ```bash
-go get github.com/rom8726/testy@latest
+go get github.com/rom8726/testy/v2@latest
 ```
 
 Add the package under test (your web-application) to `go.mod` as usual.
@@ -145,7 +145,7 @@ import (
   "testing"
 
   "project/api"
-  "github.com/rom8726/testy"
+  "github.com/rom8726/testy/v2"
 )
 
 func TestAPI(t *testing.T) {
