@@ -515,7 +515,7 @@ Contributions are welcome in the following areas:
 
 ## Release Information
 
-**Version:** 2.0.0  
+**Version:** 2.0.0
 **Release Date:** November 13, 2025
-**Status:** Stable  
+**Status:** Stable
 **Compatibility:** 100% backward compatible with v1.0
