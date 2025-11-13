@@ -25,7 +25,6 @@ The release is organized into three implementation phases, each building upon th
 6. [Examples](#examples)
 7. [Statistics](#statistics)
 8. [Breaking Changes](#breaking-changes)
-9. [Future Roadmap](#future-roadmap)
 
 ---
 
@@ -471,23 +470,6 @@ All existing tests will continue to work without any modifications. New features
 ## Bug Fixes
 
 This is a feature release. No critical bugs were fixed as part of this release. Bug fixes will be addressed in patch releases (v2.0.x).
-
----
-
-## Future Roadmap
-
-Potential features for future releases (v2.1+):
-
-- Parallel test execution for improved performance
-- Advanced HTML reporting with visualizations
-- WebSocket support for real-time testing
-- File upload and download testing
-- Custom validator registry for domain-specific validations
-- CLI tool for test management and execution
-- Real-time test monitoring dashboard
-- Test result trending and analytics
-- Database transaction support for test isolation
-- Multi-database support (beyond PostgreSQL and MySQL)
 
 ---
 
