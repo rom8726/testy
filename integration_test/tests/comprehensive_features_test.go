@@ -80,7 +80,7 @@ func TestComprehensiveFeatures(t *testing.T) {
 	srv := server.NewServer(connStr)
 
 	// Get test directory paths
-	casesDir := filepath.Join(testDir, "cases")
+	casesDir := filepath.Join(testDir, "cases", "rest")
 	fixturesDir := filepath.Join(testDir, "fixtures")
 
 	// Ensure paths are absolute for reliability
