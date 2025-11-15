@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package users;
+
+option go_package = "testyexample/userspb";
+
+import "google/protobuf/timestamp.proto";
+
+// User data
+message UserData {
+  // User UUID
+  string user_uuid = 1;
+
+  // User name
+  string name = 2;
+
+  // User last name
+  string last_name = 3;
+
+  // User email
+  string email = 4;
+
+  // Time of creation
+  google.protobuf.Timestamp created_at = 7;
+
+  // Time of update
+  google.protobuf.Timestamp updated_at = 8;
+
+  // Time of last login
+  google.protobuf.Timestamp last_login = 9;
+}

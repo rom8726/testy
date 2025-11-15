@@ -19,7 +19,8 @@ func ExecuteRequest(t *testing.T, step Step, handler http.Handler, ctxMap map[st
 	const op = "ExecuteRequest"
 
 	// Render request with context and faker
-	step.Request = renderRequest(step.Request, ctxMap)
+	renderedReq := renderRequest(*step.Request, ctxMap)
+	step.Request = &renderedReq
 
 	var body io.Reader
 	if step.Request.BodyFile != "" {

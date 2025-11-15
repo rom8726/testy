@@ -31,7 +31,7 @@ func TestServer(t *testing.T) {
 	cfg := testy.Config{
 		Handler:     srv.Router,
 		DBType:      pgfixtures.PostgreSQL,
-		CasesDir:    "./cases",
+		CasesDir:    "./cases/rest",
 		FixturesDir: "./fixtures",
 		ConnStr:     connStr,
 		MockManager: mocks,

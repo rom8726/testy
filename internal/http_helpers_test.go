@@ -86,14 +86,14 @@ func TestExecuteRequest(t *testing.T) {
 			name: "GET users - success",
 			step: Step{
 				Name: "get_users",
-				Request: RequestSpec{
+				Request: &RequestSpec{
 					Method: "GET",
 					Path:   "/users",
 					Headers: map[string]string{
 						"Content-Type": "application/json",
 					},
 				},
-				Response: ResponseSpec{
+				Response: &ResponseSpec{
 					Status: 200,
 				},
 			},
@@ -105,7 +105,7 @@ func TestExecuteRequest(t *testing.T) {
 			name: "POST user - success",
 			step: Step{
 				Name: "create_user",
-				Request: RequestSpec{
+				Request: &RequestSpec{
 					Method: "POST",
 					Path:   "/users",
 					Headers: map[string]string{
@@ -116,7 +116,7 @@ func TestExecuteRequest(t *testing.T) {
 						"name": "{{userName}}",
 					},
 				},
-				Response: ResponseSpec{
+				Response: &ResponseSpec{
 					Status: 201,
 				},
 			},
@@ -131,7 +131,7 @@ func TestExecuteRequest(t *testing.T) {
 			name: "POST user - unauthorized",
 			step: Step{
 				Name: "create_user_unauthorized",
-				Request: RequestSpec{
+				Request: &RequestSpec{
 					Method: "POST",
 					Path:   "/users",
 					Headers: map[string]string{
@@ -142,7 +142,7 @@ func TestExecuteRequest(t *testing.T) {
 						"name": "NewUser",
 					},
 				},
-				Response: ResponseSpec{
+				Response: &ResponseSpec{
 					Status: 401,
 				},
 			},
@@ -156,14 +156,14 @@ func TestExecuteRequest(t *testing.T) {
 			name: "GET user by ID - success",
 			step: Step{
 				Name: "get_user",
-				Request: RequestSpec{
+				Request: &RequestSpec{
 					Method: "GET",
 					Path:   "/users/{{userId}}",
 					Headers: map[string]string{
 						"Content-Type": "application/json",
 					},
 				},
-				Response: ResponseSpec{
+				Response: &ResponseSpec{
 					Status: 200,
 				},
 			},
@@ -177,14 +177,14 @@ func TestExecuteRequest(t *testing.T) {
 			name: "GET non-existent resource - 404",
 			step: Step{
 				Name: "get_nonexistent",
-				Request: RequestSpec{
+				Request: &RequestSpec{
 					Method: "GET",
 					Path:   "/nonexistent",
 					Headers: map[string]string{
 						"Content-Type": "application/json",
 					},
 				},
-				Response: ResponseSpec{
+				Response: &ResponseSpec{
 					Status: 404,
 				},
 			},

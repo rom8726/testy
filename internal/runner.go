@@ -9,6 +9,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // TestCaseResult represents the result of running a test case
@@ -169,70 +172,31 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 		}
 	}
 
-	var rec *httptest.ResponseRecorder
+	// Determine if this is HTTP or gRPC step
+	isHTTP := step.Request != nil
+	isGRPC := step.GRPCRequest != nil
+
+	if !isHTTP && !isGRPC {
+		stepErr := NewError(ErrInternal, op, "step must have either request or grpcRequest").
+			WithContext("step", step.Name)
+		t.Fatalf("%+v", stepErr)
+	}
+
+	if isHTTP && isGRPC {
+		stepErr := NewError(ErrInternal, op, "step cannot have both request and grpcRequest").
+			WithContext("step", step.Name)
+		t.Fatalf("%+v", stepErr)
+	}
+
 	var requestDuration time.Duration
+	var statusCode uint64
 
-	// Execute request with retry if configured
-	if step.Retry != nil {
-		parsedRetry, err := ParseRetryConfig(*step.Retry)
-		if err != nil {
-			t.Fatalf("Failed to parse retry config: %v", err)
-		}
-
-		expectedStatus := step.Response.Status
-		result := ExecuteWithRetry(parsedRetry, func() (int, error) {
-			startTime := time.Now()
-			rec = ExecuteRequest(t, step, handler, ctxMap)
-			requestDuration = time.Since(startTime)
-
-			// If status matches expected, it's not an error - proceed with validation
-			if rec.Code == expectedStatus {
-				return rec.Code, nil
-			}
-
-			// Status doesn't match expected - determine if we should retry
-			// If status is >= 400, check retry configuration
-			if rec.Code >= 400 {
-				// Check if this status code is configured for retry
-				shouldRetry := false
-				if len(parsedRetry.RetryOn) > 0 {
-					for _, retryCode := range parsedRetry.RetryOn {
-						if rec.Code == retryCode {
-							shouldRetry = true
-							break
-						}
-					}
-				}
-				// If retryOnError is true, retry on any error status that doesn't match expected
-				if parsedRetry.RetryOnError {
-					shouldRetry = true
-				}
-
-				// Return error if we should retry, otherwise return non-error
-				// ExecuteWithRetry will check ShouldRetry to decide whether to retry
-				if shouldRetry {
-					return rec.Code, fmt.Errorf("HTTP error: %d (expected: %d)", rec.Code, expectedStatus)
-				}
-				// Status doesn't match and not configured for retry - return as non-error
-				// ExecuteWithRetry won't retry, and AssertResponse will catch the mismatch
-				return rec.Code, nil
-			}
-
-			// Status < 400 but doesn't match expected - not a retry case
-			// Return as non-error - AssertResponse will catch the mismatch
-			return rec.Code, nil
-		})
-
-		if !result.Success {
-			t.Logf("Request failed after %d attempts", result.Attempts)
-		} else if result.Attempts > 1 {
-			t.Logf("Request succeeded after %d attempts", result.Attempts)
-		}
+	if isHTTP {
+		// HTTP request execution
+		statusCode = performHTTPStep(t, handler, step, cfg, ctxMap, db, &requestDuration)
 	} else {
-		// Single request execution
-		startTime := time.Now()
-		rec = ExecuteRequest(t, step, handler, ctxMap)
-		requestDuration = time.Since(startTime)
+		// gRPC request execution
+		statusCode = performGRPCStep(t, step, cfg, ctxMap, db, &requestDuration)
 	}
 
 	// AfterReq hook
@@ -245,56 +209,90 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 		}
 	}
 
-	// Performance validation
+	// Performance assertions
 	if step.Performance != nil {
-		parsedPerf, err := ParsePerformanceSpec(*step.Performance)
+		AssertPerformance(t, &step, requestDuration, statusCode)
+	}
+}
+
+func performHTTPStep(
+	t *testing.T,
+	handler http.Handler,
+	step Step,
+	_ *Config,
+	ctxMap map[string]any,
+	db *sql.DB,
+	requestDuration *time.Duration,
+) uint64 {
+	t.Helper()
+
+	var rec *httptest.ResponseRecorder
+
+	// Execute request with retry if configured
+	if step.Retry != nil {
+		parsedRetry, err := ParseRetryConfig(*step.Retry)
 		if err != nil {
-			t.Fatalf("Failed to parse performance spec: %v", err)
+			t.Fatalf("Failed to parse retry config: %v", err)
 		}
 
-		metrics := PerformanceMetrics{
-			Duration:   requestDuration,
-			StatusCode: rec.Code,
-		}
+		expectedStatus := step.Response.Status
+		result := ExecuteWithRetry(parsedRetry, func() (int, error) {
+			startTime := time.Now()
+			rec = ExecuteRequest(t, step, handler, ctxMap)
+			*requestDuration = time.Since(startTime)
 
-		perfResult := ValidatePerformance(metrics, parsedPerf)
-		if !perfResult.Passed {
-			for _, err := range perfResult.Errors {
-				t.Errorf("Performance check failed: %s", err)
+			if rec.Code == expectedStatus {
+				return rec.Code, nil
 			}
+
+			if rec.Code >= 400 {
+				shouldRetry := false
+				if len(parsedRetry.RetryOn) > 0 {
+					for _, retryCode := range parsedRetry.RetryOn {
+						if rec.Code == retryCode {
+							shouldRetry = true
+							break
+						}
+					}
+				}
+				if parsedRetry.RetryOnError {
+					shouldRetry = true
+				}
+
+				if shouldRetry {
+					return rec.Code, fmt.Errorf("HTTP error: %d (expected: %d)", rec.Code, expectedStatus)
+				}
+				return rec.Code, nil
+			}
+
+			return rec.Code, nil
+		})
+
+		if !result.Success {
+			t.Logf("Request failed after %d attempts", result.Attempts)
+		} else if result.Attempts > 1 {
+			t.Logf("Request succeeded after %d attempts", result.Attempts)
 		}
-		for _, warning := range perfResult.Warnings {
-			t.Logf("Performance warning: %s", warning)
-		}
+	} else {
+		// Single request execution
+		startTime := time.Now()
+		rec = ExecuteRequest(t, step, handler, ctxMap)
+		*requestDuration = time.Since(startTime)
 	}
 
-	// Extract JSON fields from response
-	if rec != nil && rec.Body != nil {
-		respBody := rec.Body.Bytes()
-		if len(respBody) > 0 {
-			// Check actual response Content-Type header, not expected one
-			contentType := rec.Header().Get("Content-Type")
-			if contentType == "" {
-				// Fallback to expected headers if actual header is not set
-				if step.Response.Headers != nil {
-					contentType = step.Response.Headers["Content-Type"]
-				}
-			}
-			if strings.HasPrefix(contentType, "application/json") {
-				var jsonData any
-				if err := json.Unmarshal(respBody, &jsonData); err != nil {
-					jsonErr := NewError(ErrHTTP, op, "failed to parse response JSON").
-						WithContext("step", step.Name).
-						WithContext("error", err.Error())
-					t.Fatalf("%+v", jsonErr)
-				}
+	// Extract response fields to context
+	if rec.Code >= 200 && rec.Code < 300 {
+		contentType := rec.Header().Get("Content-Type")
+		if strings.Contains(contentType, "application/json") {
+			var jsonData any
+			if err := json.Unmarshal(rec.Body.Bytes(), &jsonData); err == nil {
 				extractJSONFields(step.Name+".response", jsonData, ctxMap)
 			}
 		}
 	}
 
 	// Assert response
-	AssertResponse(t, rec, step.Response)
+	AssertResponse(t, rec, *step.Response)
 
 	// JSON Schema validation
 	if step.Response.JSONSchema != nil || step.Response.Schema != "" {
@@ -331,7 +329,6 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 			t.Logf("Warning: cannot parse response for assertions: %v", err)
 		} else {
 			for _, assertion := range step.Response.Assertions {
-				// Render assertion value with context
 				renderedAssertion := assertion
 				renderedAssertion.Value = RenderAny(assertion.Value, ctxMap)
 				if err := AssertResponseV2(renderedAssertion, responseData); err != nil {
@@ -348,6 +345,80 @@ func performStep(t *testing.T, handler http.Handler, step Step, cfg *Config, ctx
 			ExecuteDBCheck(t, db, check)
 		}
 	}
+
+	return uint64(rec.Code)
+}
+
+// New function for gRPC step execution
+func performGRPCStep(
+	t *testing.T,
+	step Step,
+	cfg *Config,
+	ctxMap map[string]any,
+	db *sql.DB,
+	requestDuration *time.Duration,
+) uint64 {
+	t.Helper()
+	const op = "performGRPCStep"
+
+	if cfg.GRPCAddr == "" {
+		grpcErr := NewError(ErrGRPC, op, "gRPC address not configured").
+			WithContext("step", step.Name)
+		t.Fatalf("%+v", grpcErr)
+	}
+
+	var response *GRPCResponse
+
+	// Execute gRPC request
+	startTime := time.Now()
+	response = ExecuteGRPCRequest(t, step, cfg.GRPCAddr, ctxMap)
+	*requestDuration = time.Since(startTime)
+
+	// Extract response fields to context
+	if response.Code == codes.OK && response.Message != nil {
+		// Convert proto message to JSON for context extraction
+		jsonBytes, err := protojson.Marshal(response.Message)
+		if err == nil {
+			var jsonData any
+			if err := json.Unmarshal(jsonBytes, &jsonData); err == nil {
+				extractJSONFields(step.Name+".response", jsonData, ctxMap)
+			}
+		}
+	}
+
+	// Assert gRPC response
+	AssertGRPCResponse(t, response, *step.GRPCResponse, ctxMap)
+
+	// Enhanced assertions for gRPC
+	if len(step.GRPCResponse.Assertions) > 0 && response.Code == codes.OK {
+		jsonBytes, err := protojson.Marshal(response.Message)
+		if err != nil {
+			t.Logf("Warning: cannot marshal response for assertions: %v", err)
+		} else {
+			var responseData map[string]any
+			if err := json.Unmarshal(jsonBytes, &responseData); err != nil {
+				t.Logf("Warning: cannot parse response for assertions: %v", err)
+			} else {
+				for _, assertion := range step.GRPCResponse.Assertions {
+					renderedAssertion := assertion
+					renderedAssertion.Value = RenderAny(assertion.Value, ctxMap)
+					if err := AssertResponseV2(renderedAssertion, responseData); err != nil {
+						t.Errorf("Assertion failed: %v", err)
+					}
+				}
+			}
+		}
+	}
+
+	// Execute DB checks
+	if len(step.DBChecks) > 0 && db != nil {
+		for _, check := range step.DBChecks {
+			check = renderDBCheck(check, ctxMap)
+			ExecuteDBCheck(t, db, check)
+		}
+	}
+
+	return uint64(response.Code)
 }
 
 // expandFakerInContext expands faker placeholders in context values

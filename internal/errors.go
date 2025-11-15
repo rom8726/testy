@@ -26,6 +26,8 @@ var (
 
 	// ErrInternal is returned when an internal error occurs
 	ErrInternal = errors.New("internal error")
+
+	ErrGRPC = errors.New("grpc_error")
 )
 
 // Error represents a standardized error with context

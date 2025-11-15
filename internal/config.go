@@ -9,6 +9,7 @@ type Config struct {
 	DBType      pgfixtures.DatabaseType
 	ConnStr     string
 	FixturesDir string
+	GRPCAddr    string
 	Mocks       []*MockInstance
 
 	BeforeReq func() error

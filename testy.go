@@ -11,6 +11,7 @@ import (
 
 type Config struct {
 	Handler     http.Handler
+	GRPCAddr    string
 	DBType      pgfixtures.DatabaseType
 	CasesDir    string
 	FixturesDir string
@@ -32,7 +33,6 @@ func Run(t *testing.T, cfg *Config) {
 
 	cases, err := internal.LoadTestCases(cfg.CasesDir)
 	if err != nil {
-		// Use the error directly since it's already wrapped by LoadTestCases
 		t.Fatalf("%+v", err)
 	}
 
@@ -48,6 +48,7 @@ func Run(t *testing.T, cfg *Config) {
 			DBType:      cfg.DBType,
 			ConnStr:     cfg.ConnStr,
 			FixturesDir: cfg.FixturesDir,
+			GRPCAddr:    cfg.GRPCAddr,
 			Mocks:       mocks,
 			BeforeReq:   cfg.BeforeReq,
 			AfterReq:    cfg.AfterReq,

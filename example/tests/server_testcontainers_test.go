@@ -82,7 +82,7 @@ func TestServerWithTestcontainers(t *testing.T) {
 
 	// Get test directory paths (relative to test file location)
 	// Use the same relative paths as in the original test
-	casesDir := filepath.Join(testDir, "cases")
+	casesDir := filepath.Join(testDir, "cases", "rest")
 	fixturesDir := filepath.Join(testDir, "fixtures")
 
 	// Ensure paths are absolute for reliability

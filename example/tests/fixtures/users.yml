@@ -1,0 +1,16 @@
+public.users:
+  - id: $eval(SELECT gen_random_uuid())
+    name: "Test User 1"
+    email: "testuser1@example.com"
+    age: 25
+    last_login_at: $eval(SELECT NOW())
+    created_at: $eval(SELECT NOW() - INTERVAL '1 day')
+    updated_at: $eval(SELECT NOW() - INTERVAL '1 day')
+  - id: $eval(SELECT gen_random_uuid())
+    name: "Test User 2"
+    email: "testuser2@example.com"
+    age: 30
+    last_login_at: $eval(SELECT NOW())
+    created_at: $eval(SELECT NOW() - INTERVAL '2 day')
+    updated_at: $eval(SELECT NOW() - INTERVAL '2 day')
+

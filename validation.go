@@ -19,10 +19,16 @@ func (e ValidationError) Error() string {
 func (c *Config) Validate() error {
 	var validationErrors []ValidationError
 
-	if c.Handler == nil {
+	if c.Handler == nil && c.GRPCAddr == "" {
 		validationErrors = append(validationErrors, ValidationError{
 			Field:   "Handler",
-			Message: "http.Handler is required",
+			Message: "http.Handler or gRPC Server is required",
+		})
+	}
+	if c.Handler != nil && c.GRPCAddr != "" {
+		validationErrors = append(validationErrors, ValidationError{
+			Field:   "Handler",
+			Message: "Only one of http.Handler or gRPC Server can be provided",
 		})
 	}
 
