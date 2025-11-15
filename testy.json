@@ -214,7 +214,7 @@
         "minItems": 1,
         "items": {
           "type": "object",
-          "required": ["name", "request", "response"],
+          "required": ["name"],
           "properties": {
             "name": {
               "type": "string",
@@ -419,6 +419,120 @@
                 }
               }
             },
+            "grpcRequest": {
+              "type": "object",
+              "description": "gRPC request specification",
+              "required": ["service", "method"],
+              "properties": {
+                "service": {
+                  "type": "string",
+                  "description": "gRPC service name (e.g., 'users.UserService', supports placeholders)"
+                },
+                "method": {
+                  "type": "string",
+                  "description": "gRPC method name (e.g., 'CreateUser', 'GetUser', supports placeholders)"
+                },
+                "message": {
+                  "type": "object",
+                  "description": "Request message as key-value map (supports placeholders and faker functions like {{faker.name}}, {{faker.email}})",
+                  "additionalProperties": true
+                },
+                "metadata": {
+                  "type": "object",
+                  "description": "gRPC metadata (headers) as key-value pairs (supports placeholders)",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "grpcResponse": {
+              "type": "object",
+              "description": "Expected gRPC response",
+              "required": ["code"],
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "OK",
+                    "CANCELLED", "Cancelled",
+                    "UNKNOWN", "Unknown",
+                    "INVALID_ARGUMENT", "InvalidArgument",
+                    "DEADLINE_EXCEEDED", "DeadlineExceeded",
+                    "NOT_FOUND", "NotFound",
+                    "ALREADY_EXISTS", "AlreadyExists",
+                    "PERMISSION_DENIED", "PermissionDenied",
+                    "RESOURCE_EXHAUSTED", "ResourceExhausted",
+                    "FAILED_PRECONDITION", "FailedPrecondition",
+                    "ABORTED", "Aborted",
+                    "OUT_OF_RANGE", "OutOfRange",
+                    "UNIMPLEMENTED", "Unimplemented",
+                    "INTERNAL", "Internal",
+                    "UNAVAILABLE", "Unavailable",
+                    "DATA_LOSS", "DataLoss",
+                    "UNAUTHENTICATED", "Unauthenticated"
+                  ],
+                  "description": "Expected gRPC status code"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Expected response message as JSON string (supports jsonassert placeholders like <<PRESENCE>> and variable substitution like {{step.response.field}})"
+                },
+                "metadata": {
+                  "type": "object",
+                  "description": "Expected gRPC metadata (headers) as key-value pairs",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "assertions": {
+                  "type": "array",
+                  "description": "Enhanced assertions for response validation",
+                  "items": {
+                    "type": "object",
+                    "required": ["path", "operator"],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "description": "JSON path to value (supports dot notation and array indexing, e.g., 'users[0].age')"
+                      },
+                      "operator": {
+                        "type": "string",
+                        "enum": [
+                          "equals", "eq", "==",
+                          "notEquals", "ne", "!=",
+                          "greaterThan", "gt", ">",
+                          "lessThan", "lt", "<",
+                          "greaterOrEqual", "gte", ">=",
+                          "lessOrEqual", "lte", "<=",
+                          "between",
+                          "contains",
+                          "notContains",
+                          "matches",
+                          "startsWith",
+                          "endsWith",
+                          "in",
+                          "notIn",
+                          "isEmpty",
+                          "isNotEmpty",
+                          "hasLength",
+                          "hasMinLength",
+                          "hasMaxLength"
+                        ],
+                        "description": "Assertion operator"
+                      },
+                      "value": {
+                        "description": "Expected value (for 'between' operator: array [min, max])"
+                      },
+                      "message": {
+                        "type": "string",
+                        "description": "Optional custom error message"
+                      }
+                    }
+                  }
+                }
+              }
+            },
             "performance": {
               "type": "object",
               "description": "Performance constraints for the request",
@@ -467,7 +581,11 @@
                 }
               }
             }
-          }
+          },
+          "oneOf": [
+            {"required": ["request", "response"]},
+            {"required": ["grpcRequest", "grpcResponse"]}
+          ]
         }
       }
     }
