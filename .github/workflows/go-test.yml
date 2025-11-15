@@ -13,21 +13,6 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:14
-        env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
     - name: Check out code
       uses: actions/checkout@v3
@@ -42,18 +27,7 @@ jobs:
       run: go mod download
 
     - name: Run tests with coverage
-      run: go test -covermode atomic -coverprofile=covprofile ./internal/...
-      env:
-        TEST_DB: "postgres://user:password@localhost:5432/db?sslmode=disable"
-
-#    - name: Run example tests
-#      run: |
-#        PGPASSWORD=password psql -h localhost -U user -d db -f example/migration.sql
-#        cd example
-#        go mod download
-#        go test -v ./...
-#      env:
-#        TEST_DB: "postgres://user:password@localhost:5432/db?sslmode=disable"
+      run: go test -covermode atomic -coverprofile=covprofile ./...
 
     - name: Install goveralls
       run: go install github.com/mattn/goveralls@latest

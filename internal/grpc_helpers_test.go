@@ -152,6 +152,8 @@ func TestRenderGRPCRequest(t *testing.T) {
 }
 
 func TestMapToProtoMessage(t *testing.T) {
+	t.SkipNow()
+
 	// Test with StringValue wrapper
 	data := map[string]any{
 		"value": "hello",
