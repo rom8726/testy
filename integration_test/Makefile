@@ -5,7 +5,7 @@ ROOT ?= $(shell pwd)
 
 go.image.build:
 	@echo "-> build go image"
-	@docker build -f Dockerfile . -t testy_proto_console_go
+	@docker build -f Dockerfile . -t integration_test_proto_console_go
 
 GOREPS=\
 	userspb
@@ -14,13 +14,13 @@ GOREPS=\
 $(GOREPS): go.image.build
 	@echo "-> build $@"
 	@mkdir -p "$@"
-	@docker run -v $(ROOT):/proto-build -e PROTO_NAME=$@ --rm testy_proto_console_go sh -c "\
+	@docker run -v $(ROOT):/proto-build -e PROTO_NAME=$@ --rm integration_test_proto_console_go sh -c "\
 		cd /proto-build && \
 		protoc \
 			--go_out=./\$$PROTO_NAME/ \
-			--go_opt=module=testyexample \
+			--go_opt=module=integration_test \
 			--go-grpc_out=./\$$PROTO_NAME/ \
-			--go-grpc_opt=module=testyexample \
+			--go-grpc_opt=module=integration_test \
 			--openapiv2_out=logtostderr=true:./\$$PROTO_NAME \
 			--openapiv2_opt=output_format=json \
 			--grpc-gateway_out=./\$$PROTO_NAME/ \

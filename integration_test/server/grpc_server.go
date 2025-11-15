@@ -1,4 +1,4 @@
-package testyexample
+package server
 
 import (
 	"context"
@@ -6,10 +6,11 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"testyexample/userspb"
+	"integration_test/userspb"
 )
 
 // UserServiceServer implements UserService gRPC service
@@ -84,7 +85,7 @@ func (s *UserServiceServer) GetUser(ctx context.Context, req *userspb.GetUserReq
 	}
 
 	var id, name, email string
-	var age int32
+	var age sql.NullInt32
 
 	query := `SELECT id, name, email, age FROM users WHERE id = $1`
 	err := s.db.QueryRowContext(ctx, query, req.Id).Scan(&id, &name, &email, &age)
@@ -95,11 +96,16 @@ func (s *UserServiceServer) GetUser(ctx context.Context, req *userspb.GetUserReq
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get user: %v", err))
 	}
 
+	var ageValue int32
+	if age.Valid {
+		ageValue = age.Int32
+	}
+
 	return &userspb.GetUserResponse{
 		Id:    id,
 		Name:  name,
 		Email: email,
-		Age:   age,
+		Age:   ageValue,
 	}, nil
 }
 
@@ -169,17 +175,22 @@ func (s *AdminServiceServer) GetAllUsers(ctx context.Context, req *userspb.GetAl
 	var users []*userspb.GetUserResponse
 	for rows.Next() {
 		var id, name, email string
-		var age int32
+		var age sql.NullInt32
 
 		if err := rows.Scan(&id, &name, &email, &age); err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to scan user: %v", err))
+		}
+
+		var ageValue int32
+		if age.Valid {
+			ageValue = age.Int32
 		}
 
 		users = append(users, &userspb.GetUserResponse{
 			Id:    id,
 			Name:  name,
 			Email: email,
-			Age:   age,
+			Age:   ageValue,
 		})
 	}
 

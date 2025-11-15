@@ -18,10 +18,10 @@ import (
 
 	"github.com/rom8726/testy/v2"
 
-	"testyexample"
+	"integration_test/server"
 )
 
-func TestServerWithTestcontainers(t *testing.T) {
+func TestComprehensiveFeatures(t *testing.T) {
 	ctx := context.Background()
 
 	// Start PostgreSQL container with testcontainers
@@ -46,7 +46,6 @@ func TestServerWithTestcontainers(t *testing.T) {
 	}()
 
 	// Get connection string
-	// testcontainers returns "postgres://..." but we need "postgresql://..." for compatibility
 	connStr, err := postgresContainer.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
 		t.Fatalf("failed to get connection string: %v", err)
@@ -78,10 +77,9 @@ func TestServerWithTestcontainers(t *testing.T) {
 	defer os.Unsetenv("NOTIFICATION_BASE_URL")
 
 	// Create server instance
-	srv := testyexample.NewServer(connStr)
+	srv := server.NewServer(connStr)
 
-	// Get test directory paths (relative to test file location)
-	// Use the same relative paths as in the original test
+	// Get test directory paths
 	casesDir := filepath.Join(testDir, "cases", "rest")
 	fixturesDir := filepath.Join(testDir, "fixtures")
 
@@ -95,6 +93,7 @@ func TestServerWithTestcontainers(t *testing.T) {
 		t.Fatalf("failed to get absolute path for fixtures: %v", err)
 	}
 
+	// Use testy.Config to properly handle mocks
 	cfg := testy.Config{
 		Handler:     srv.Router,
 		DBType:      pgfixtures.PostgreSQL,
@@ -103,16 +102,17 @@ func TestServerWithTestcontainers(t *testing.T) {
 		ConnStr:     connStr,
 		MockManager: mocks,
 		BeforeReq: func() error {
-			fmt.Println("before request")
+			// Optional: can add logging or setup here
 			return nil
 		},
 		AfterReq: func() error {
-			fmt.Println("after request")
+			// Optional: can add logging or cleanup here
 			return nil
 		},
-		JUnitReport: "./junit_testcontainers.xml",
+		JUnitReport: "./junit_rest.xml",
 	}
 
+	// Run tests - will run all test cases in casesDir
 	testy.Run(t, &cfg)
 }
 

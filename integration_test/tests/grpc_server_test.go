@@ -16,8 +16,8 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/rom8726/testy/v2"
-	"testyexample"
-	"testyexample/userspb"
+	"integration_test/server"
+	"integration_test/userspb"
 )
 
 func TestGRPCServer(t *testing.T) {
@@ -63,13 +63,13 @@ func TestGRPCServer(t *testing.T) {
 	}
 
 	// Create gRPC service servers
-	userService, err := testyexample.NewUserServiceServer(connStr)
+	userService, err := server.NewUserServiceServer(connStr)
 	if err != nil {
 		t.Fatalf("failed to create user service: %v", err)
 	}
 	defer userService.Close()
 
-	adminService, err := testyexample.NewAdminServiceServer(connStr)
+	adminService, err := server.NewAdminServiceServer(connStr)
 	if err != nil {
 		t.Fatalf("failed to create admin service: %v", err)
 	}
@@ -119,9 +119,11 @@ func TestGRPCServer(t *testing.T) {
 		FixturesDir: fixturesDir,
 		ConnStr:     connStr,
 		BeforeReq: func() error {
+			// Optional: setup before each request
 			return nil
 		},
 		AfterReq: func() error {
+			// Optional: cleanup after each request
 			return nil
 		},
 		JUnitReport: filepath.Join(testDir, "junit_grpc.xml"),
