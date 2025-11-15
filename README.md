@@ -11,7 +11,7 @@ It lets you describe end-to-end scenarios in YAML, automatically:
 
 * runs HTTP requests against the given `http.Handler` or gRPC calls against gRPC services
 * asserts HTTP responses (status code + JSON body) or gRPC responses (status code + protobuf message)
-* loads database fixtures before the scenario
+* loads database fixtures before the scenario (using [`rom8726/pgfixtures`](https://github.com/rom8726/pgfixtures))
 * executes SQL checks after each step
 * spins up lightweight HTTP mocks and verifies outbound calls
 * supports conditional execution, loops, retries, and performance monitoring (v2.0)
@@ -19,6 +19,8 @@ It lets you describe end-to-end scenarios in YAML, automatically:
 * generates realistic test data with faker functions (v2.0)
 
 Only PostgreSQL and MySQL are supported.
+
+**Note on fixtures:** When multiple fixtures are specified in a test case, fixtures that share common tables will conflict - the later fixture will overwrite data from the earlier one, as each fixture truncates its tables before inserting. To avoid this, use separate fixtures for different tables, combine related tables into a single fixture, or carefully order fixtures if they must share tables.
 
 <img src="docs/logo.png" width="500" alt="Testy logo">
 
@@ -408,6 +410,11 @@ Loaded with [`rom8726/pgfixtures`](https://github.com/rom8726/pgfixtures):
 
 * One YML file per table (or group of tables)
 * Auto-truncate and sequence reset before inserting
+
+**Important note on multiple fixtures:** When adding multiple fixtures to a single test case, be aware that if fixtures share common tables, the later fixture will overwrite data from the earlier one. This is because each fixture truncates its tables before inserting data. To avoid conflicts, either:
+* Use separate fixtures for different tables
+* Combine related tables into a single fixture file
+* Order fixtures carefully if they must share tables (later fixture takes precedence)
 
 ### Request Hooks
 Optional pre/post request hooks to stub time, clean caches, etc.:
