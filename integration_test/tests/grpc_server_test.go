@@ -2,9 +2,7 @@ package tests
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
-	"os"
+	"net"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -15,13 +13,14 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"google.golang.org/grpc"
 
 	"github.com/rom8726/testy/v2"
-
 	"integration_test/server"
+	"integration_test/userspb"
 )
 
-func TestComprehensiveFeatures(t *testing.T) {
+func TestGRPCServer(t *testing.T) {
 	ctx := context.Background()
 
 	// Start PostgreSQL container with testcontainers
@@ -58,29 +57,48 @@ func TestComprehensiveFeatures(t *testing.T) {
 	// Apply migration
 	_, testFile, _, _ := runtime.Caller(0)
 	testDir := filepath.Dir(testFile)
-	migrationPath := filepath.Join(testDir, "..", "migration.sql")
+	migrationPath := filepath.Join(testDir, "../grpc_migration.sql")
 	if err := applyMigration(ctx, connStr, migrationPath); err != nil {
 		t.Fatalf("failed to apply migration: %v", err)
 	}
 
-	// Setup mocks
-	mocks, err := testy.StartMockManager("notification")
+	// Create gRPC service servers
+	userService, err := server.NewUserServiceServer(connStr)
 	if err != nil {
-		t.Fatalf("mock start: %v", err)
+		t.Fatalf("failed to create user service: %v", err)
 	}
-	defer mocks.StopAll()
+	defer userService.Close()
 
-	err = os.Setenv("NOTIFICATION_BASE_URL", mocks.URL("notification"))
+	adminService, err := server.NewAdminServiceServer(connStr)
 	if err != nil {
-		t.Fatalf("set env: %v", err)
+		t.Fatalf("failed to create admin service: %v", err)
 	}
-	defer os.Unsetenv("NOTIFICATION_BASE_URL")
+	defer adminService.Close()
 
-	// Create server instance
-	srv := server.NewServer(connStr)
+	// Start gRPC server
+	grpcServer := grpc.NewServer()
+	userspb.RegisterUserServiceServer(grpcServer, userService)
+	userspb.RegisterAdminServiceServer(grpcServer, adminService)
 
-	// Get test directory paths
-	casesDir := filepath.Join(testDir, "cases")
+	// Start listening on a random port
+	listener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatalf("Failed to create listener: %v", err)
+	}
+
+	// Get the actual address
+	grpcAddr := listener.Addr().String()
+
+	// Start server in goroutine
+	go func() {
+		if err := grpcServer.Serve(listener); err != nil {
+			t.Logf("gRPC server error: %v", err)
+		}
+	}()
+	defer grpcServer.GracefulStop()
+
+	// Get test directory paths (relative to test file location)
+	casesDir := filepath.Join(testDir, "cases", "grpc")
 	fixturesDir := filepath.Join(testDir, "fixtures")
 
 	// Ensure paths are absolute for reliability
@@ -93,55 +111,23 @@ func TestComprehensiveFeatures(t *testing.T) {
 		t.Fatalf("failed to get absolute path for fixtures: %v", err)
 	}
 
-	// Use testy.Config to properly handle mocks
+	// Run testy tests
 	cfg := testy.Config{
-		Handler:     srv.Router,
+		GRPCAddr:    grpcAddr,
 		DBType:      pgfixtures.PostgreSQL,
 		CasesDir:    casesDir,
 		FixturesDir: fixturesDir,
 		ConnStr:     connStr,
-		MockManager: mocks,
 		BeforeReq: func() error {
-			// Optional: can add logging or setup here
+			// Optional: setup before each request
 			return nil
 		},
 		AfterReq: func() error {
-			// Optional: can add logging or cleanup here
+			// Optional: cleanup after each request
 			return nil
 		},
-		JUnitReport: "./junit_comprehensive.xml",
+		JUnitReport: filepath.Join(testDir, "junit_grpc.xml"),
 	}
 
-	// Run tests - will run all test cases in casesDir
 	testy.Run(t, &cfg)
-}
-
-// applyMigration applies the migration SQL file to the database
-func applyMigration(ctx context.Context, connStr, migrationPath string) error {
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
-	}
-	defer db.Close()
-
-	// Wait for database to be ready
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	if err := db.PingContext(ctx); err != nil {
-		return fmt.Errorf("failed to ping database: %w", err)
-	}
-
-	// Read migration file
-	migrationSQL, err := os.ReadFile(migrationPath)
-	if err != nil {
-		return fmt.Errorf("failed to read migration file: %w", err)
-	}
-
-	// Execute migration
-	if _, err := db.ExecContext(ctx, string(migrationSQL)); err != nil {
-		return fmt.Errorf("failed to execute migration: %w", err)
-	}
-
-	return nil
 }

@@ -12,12 +12,19 @@ type TestCase struct {
 }
 
 type Step struct {
-	Name        string           `yaml:"name"`
-	When        string           `yaml:"when,omitempty"`
-	Loop        *LoopConfig      `yaml:"loop,omitempty"`
-	Retry       *RetryConfig     `yaml:"retry,omitempty"`
-	Request     RequestSpec      `yaml:"request"`
-	Response    ResponseSpec     `yaml:"response"`
+	Name  string       `yaml:"name"`
+	When  string       `yaml:"when,omitempty"`
+	Loop  *LoopConfig  `yaml:"loop,omitempty"`
+	Retry *RetryConfig `yaml:"retry,omitempty"`
+
+	// HTTP fields
+	Request  *RequestSpec  `yaml:"request,omitempty"`
+	Response *ResponseSpec `yaml:"response,omitempty"`
+
+	// gRPC fields
+	GRPCRequest  *GRPCRequestSpec  `yaml:"grpcRequest,omitempty"`
+	GRPCResponse *GRPCResponseSpec `yaml:"grpcResponse,omitempty"`
+
 	Performance *PerformanceSpec `yaml:"performance,omitempty"`
 	DBChecks    []DBCheck        `yaml:"dbChecks,omitempty"`
 }
@@ -77,4 +84,12 @@ type MockCallCheck struct {
 	Mock   string         `yaml:"mock"`
 	Count  int            `yaml:"count"`
 	Expect MockCallExpect `yaml:"expect"`
+}
+
+func (s *Step) IsHTTP() bool {
+	return s.Request != nil
+}
+
+func (s *Step) IsGRPC() bool {
+	return s.GRPCRequest != nil
 }

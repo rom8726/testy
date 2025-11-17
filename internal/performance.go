@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"testing"
 	"time"
 )
 
@@ -56,7 +57,7 @@ func ParsePerformanceSpec(spec PerformanceSpec) (*ParsedPerformanceSpec, error) 
 type PerformanceMetrics struct {
 	Duration      time.Duration
 	MemoryUsageMB int
-	StatusCode    int
+	StatusCode    uint64
 }
 
 // PerformanceResult contains the result of performance validation
@@ -107,6 +108,28 @@ func ValidatePerformance(metrics PerformanceMetrics, spec *ParsedPerformanceSpec
 	}
 
 	return result
+}
+
+func AssertPerformance(t *testing.T, step *Step, requestDuration time.Duration, statusCode uint64) {
+	parsedPerf, err := ParsePerformanceSpec(*step.Performance)
+	if err != nil {
+		t.Fatalf("Failed to parse performance spec: %v", err)
+	}
+
+	metrics := PerformanceMetrics{
+		Duration:   requestDuration,
+		StatusCode: statusCode,
+	}
+
+	perfResult := ValidatePerformance(metrics, parsedPerf)
+	if !perfResult.Passed {
+		for _, err := range perfResult.Errors {
+			t.Errorf("Performance check failed: %s", err)
+		}
+	}
+	for _, warning := range perfResult.Warnings {
+		t.Logf("Performance warning: %s", warning)
+	}
 }
 
 // FormatPerformanceResult formats a performance result for logging

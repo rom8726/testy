@@ -6,12 +6,12 @@
 
 [![boosty-cozy](https://gideonwhite1029.github.io/badges/cozy-boosty_vector.svg)](https://boosty.to/dev-tools-hacker)
 
-A functional-testing framework for HTTP handlers written in Go.
+A functional-testing framework for HTTP handlers and gRPC services written in Go.
 It lets you describe end-to-end scenarios in YAML, automatically:
 
-* runs the request against the given `http.Handler`
-* asserts the HTTP response (status code + JSON body)
-* loads database fixtures before the scenario
+* runs HTTP requests against the given `http.Handler` or gRPC calls against gRPC services
+* asserts HTTP responses (status code + JSON body) or gRPC responses (status code + protobuf message)
+* loads database fixtures before the scenario (using [`rom8726/pgfixtures`](https://github.com/rom8726/pgfixtures))
 * executes SQL checks after each step
 * spins up lightweight HTTP mocks and verifies outbound calls
 * supports conditional execution, loops, retries, and performance monitoring (v2.0)
@@ -19,6 +19,8 @@ It lets you describe end-to-end scenarios in YAML, automatically:
 * generates realistic test data with faker functions (v2.0)
 
 Only PostgreSQL and MySQL are supported.
+
+**Note on fixtures:** When multiple fixtures are specified in a test case, fixtures that share common tables will conflict - the later fixture will overwrite data from the earlier one, as each fixture truncates its tables before inserting. To avoid this, use separate fixtures for different tables, combine related tables into a single fixture, or carefully order fixtures if they must share tables.
 
 <img src="docs/logo.png" width="500" alt="Testy logo">
 
@@ -71,11 +73,11 @@ Directory layout:
 /project
  ├─ api/                 # your application code
  ├─ tests/
- │   ├─ cases/           # *.yml files with scenarios
+ │   ├─ cases/           # *.testy.yml files with scenarios
  │   ├─ fixtures/        # *.yml fixtures for pgfixtures
  └── api_test.go         # Go test that calls testy.Run
 ```
-### 1. Multi-step YAML case (`tests/cases/user_flow.yml`)
+### 1. Multi-step YAML case for HTTP (`tests/cases/user_flow.testy.yml`)
 ```yaml
 - name: end-to-end user flow
   fixtures:
@@ -139,7 +141,62 @@ How the placeholders work:
 
 Placeholders are resolved in the request URL, headers and body, as well as inside `dbChecks.query`.
 
-### 2. Go test (`tests/api_test.go`)
+### 2. Multi-step YAML case for gRPC (`tests/cases/user_grpc.testy.yml`)
+```yaml
+- name: gRPC user service test
+  fixtures:
+    - users
+
+  variables:
+    defaultEmail: "test@example.com"
+
+  steps:
+    - name: create_user
+      grpcRequest:
+        service: users.UserService
+        method: CreateUser
+        message:
+          name: "John Doe"
+          email: "{{defaultEmail}}"
+          age: 30
+        metadata:
+          authorization: "Bearer token123"
+          x-request-id: "{{UUID}}"
+      grpcResponse:
+        code: OK
+        message: |
+          {
+            "id": "<<PRESENCE>>",
+            "name": "John Doe",
+            "email": "test@example.com",
+            "age": 30
+          }
+      dbChecks:
+        - query: SELECT COUNT(*) as count FROM users WHERE email = 'test@example.com'
+          result: '[{"count": 1}]'
+
+    - name: get_user
+      grpcRequest:
+        service: users.UserService
+        method: GetUser
+        message:
+          id: "{{create_user.response.id}}"
+      grpcResponse:
+        code: OK
+        message: |
+          {
+            "id": "{{create_user.response.id}}",
+            "name": "John Doe",
+            "email": "test@example.com",
+            "age": 30
+          }
+        assertions:
+          - path: name
+            operator: eq
+            value: "John Doe"
+```
+
+### 3. Go test for HTTP (`tests/api_test.go`)
 ```go
 package project_test
 
@@ -163,6 +220,125 @@ func TestAPI(t *testing.T) {
 }
 ```
 
+### 4. Go test for gRPC (`tests/grpc_test.go`)
+```go
+package tests
+
+import (
+  "context"
+  "net"
+  "path/filepath"
+  "runtime"
+  "testing"
+  "time"
+
+  _ "github.com/lib/pq"
+  "github.com/rom8726/pgfixtures"
+  "github.com/testcontainers/testcontainers-go"
+  "github.com/testcontainers/testcontainers-go/modules/postgres"
+  "github.com/testcontainers/testcontainers-go/wait"
+  "google.golang.org/grpc"
+
+  "github.com/rom8726/testy/v2"
+  "yourproject/server"
+  "yourproject/userspb"
+)
+
+func TestGRPCServer(t *testing.T) {
+  ctx := context.Background()
+
+  // Start PostgreSQL container with testcontainers
+  postgresContainer, err := postgres.RunContainer(ctx,
+    testcontainers.WithImage("postgres:16"),
+    postgres.WithDatabase("db"),
+    postgres.WithUsername("user"),
+    postgres.WithPassword("password"),
+    testcontainers.WithWaitStrategy(
+      wait.ForLog("database system is ready to accept connections").
+        WithOccurrence(2).
+        WithStartupTimeout(30*time.Second),
+    ),
+  )
+  if err != nil {
+    t.Fatalf("failed to start postgres container: %v", err)
+  }
+  defer func() {
+    if err := postgresContainer.Terminate(ctx); err != nil {
+      t.Fatalf("failed to terminate postgres container: %v", err)
+    }
+  }()
+
+  // Get connection string
+  connStr, err := postgresContainer.ConnectionString(ctx, "sslmode=disable")
+  if err != nil {
+    t.Fatalf("failed to get connection string: %v", err)
+  }
+  // Convert postgres:// to postgresql:// for compatibility with lib/pq
+  if len(connStr) >= 11 && connStr[:11] == "postgres://" {
+    connStr = "postgresql://" + connStr[11:]
+  }
+
+  // Apply migration
+  _, testFile, _, _ := runtime.Caller(0)
+  testDir := filepath.Dir(testFile)
+  migrationPath := filepath.Join(testDir, "grpc_migration.sql")
+  if err := applyMigration(ctx, connStr, migrationPath); err != nil {
+    t.Fatalf("failed to apply migration: %v", err)
+  }
+
+  // Create gRPC service servers
+  userService, err := server.NewUserServiceServer(connStr)
+  if err != nil {
+    t.Fatalf("failed to create user service: %v", err)
+  }
+  defer userService.Close()
+
+  // Start gRPC server
+  grpcServer := grpc.NewServer()
+  userspb.RegisterUserServiceServer(grpcServer, userService)
+
+  // Start listening on a random port
+  listener, err := net.Listen("tcp", "localhost:0")
+  if err != nil {
+    t.Fatalf("Failed to create listener: %v", err)
+  }
+
+  grpcAddr := listener.Addr().String()
+
+  // Start server in goroutine
+  go func() {
+    if err := grpcServer.Serve(listener); err != nil {
+      t.Logf("gRPC server error: %v", err)
+    }
+  }()
+  defer grpcServer.GracefulStop()
+
+  // Get test directory paths
+  casesDir := filepath.Join(testDir, "cases")
+  fixturesDir := filepath.Join(testDir, "fixtures")
+
+  casesDir, err = filepath.Abs(casesDir)
+  if err != nil {
+    t.Fatalf("failed to get absolute path for cases: %v", err)
+  }
+  fixturesDir, err = filepath.Abs(fixturesDir)
+  if err != nil {
+    t.Fatalf("failed to get absolute path for fixtures: %v", err)
+  }
+
+  // Run testy tests
+  cfg := testy.Config{
+    GRPCAddr:    grpcAddr,
+    DBType:      pgfixtures.PostgreSQL,
+    CasesDir:    casesDir,
+    FixturesDir: fixturesDir,
+    ConnStr:     connStr,
+  }
+
+  testy.Run(t, &cfg)
+}
+```
+
 Run the tests:
 ```bash
 go test ./...
@@ -175,10 +351,10 @@ go test ./...
 ### Declarative scenarios
 * Unlimited **steps** per scenario.
 * Each step can:
-    * send any HTTP method, URL, headers and JSON body
+    * send HTTP requests (any method, URL, headers and JSON body) or gRPC calls (service, method, message, metadata)
     * reference values from previous responses (`{{<step>.response.<field>}}`)
     * inject environment variables (`{{HOME}}`, `{{UUID}}`, ...)
-    * assert status code and JSON body (via [`kinbiko/jsonassert`](https://github.com/kinbiko/jsonassert))
+    * assert HTTP responses (status code + JSON body) or gRPC responses (status code + protobuf message)
     * run one or more **DB checks** — SQL + expected JSON\YAML rows.
     * fire and assert HTTP **mocks** for outgoing calls
 
@@ -234,6 +410,11 @@ Loaded with [`rom8726/pgfixtures`](https://github.com/rom8726/pgfixtures):
 
 * One YML file per table (or group of tables)
 * Auto-truncate and sequence reset before inserting
+
+**Important note on multiple fixtures:** When adding multiple fixtures to a single test case, be aware that if fixtures share common tables, the later fixture will overwrite data from the earlier one. This is because each fixture truncates its tables before inserting data. To avoid conflicts, either:
+* Use separate fixtures for different tables
+* Combine related tables into a single fixture file
+* Order fixtures carefully if they must share tables (later fixture takes precedence)
 
 ### Request Hooks
 Optional pre/post request hooks to stub time, clean caches, etc.:
@@ -297,9 +478,12 @@ func TestServer(t *testing.T) {
 ### Zero reflection magic
 The framework only needs:
 
-* an `http.Handler`
+* an `http.Handler` (for HTTP tests) or gRPC server address (for gRPC tests)
 * PostgreSQL connection string
 * paths to your YAML files
+
+For gRPC tests, the framework automatically discovers service methods from protobuf files registered in the global protobuf registry.
+Make sure to import your generated protobuf packages in your test file to enable service discovery.
 
 ---
 
@@ -349,6 +533,7 @@ The framework only needs:
         retryOn: [503, 429]  # retry only on these status codes
         retryOnError: true   # retry on any error
 
+      # HTTP request (use either request/response OR grpcRequest/grpcResponse)
       request:
         method:  GET | POST | PUT | PATCH | DELETE | ...
         path:    string      # placeholders {{...}} allowed
@@ -370,6 +555,7 @@ The framework only needs:
           # - {{faker.company}}, {{faker.companyName}} (company)
           # - {{faker.random.string}}, {{faker.random.int}}, {{faker.random.bool}} (random)
 
+      # HTTP response
       response:
         status: integer
         headers:
@@ -409,6 +595,29 @@ The framework only needs:
               # - hasMaxLength (maximum length check)
             value: 18                   # expected value (for between: [min, max] array)
             message: string             # optional, custom error message
+
+      # gRPC request (use either request/response OR grpcRequest/grpcResponse)
+      grpcRequest:
+        service: string      # gRPC service name (e.g., "users.UserService"), supports placeholders
+        method: string      # gRPC method name (e.g., "CreateUser", "GetUser"), supports placeholders
+        message:            # request message as key-value map
+          name: "John Doe"
+          email: "{{faker.email}}"
+          age: 30
+        metadata:           # optional, gRPC metadata (headers)
+          authorization: "Bearer {{TOKEN}}"
+          x-request-id: "{{UUID}}"
+
+      # gRPC response
+      grpcResponse:
+        code: OK | NOT_FOUND | INVALID_ARGUMENT | ...  # gRPC status code
+        message: string    # optional, expected response as JSON (supports jsonassert placeholders like <<PRESENCE>>)
+        metadata:          # optional, expected gRPC metadata
+          x-trace-id: "value"
+        assertions:        # optional, enhanced assertions (same as HTTP response assertions)
+          - path: name
+            operator: eq
+            value: "John Doe"
 
       performance:           # optional, performance constraints
         maxDuration: 500ms   # max allowed duration
@@ -488,9 +697,11 @@ After this, VS Code will validate and auto-complete fields in Testy YAML scenari
 ### What the schema covers
 
 - File root is an array of scenarios.
-- Types/requirements for `name`, `fixtures`, `mockServers`, `mockCalls`, `steps[*].request`, `steps[*].response`, `steps[*].dbChecks`.
+- Types/requirements for `name`, `fixtures`, `mockServers`, `mockCalls`, `steps[*].request`, `steps[*].response`, `steps[*].grpcRequest`, `steps[*].grpcResponse`, `steps[*].dbChecks`.
 - Enumerations for HTTP methods (`GET`, `POST`, ...); status code range `100..599`.
+- Enumerations for gRPC status codes (`OK`, `NOT_FOUND`, `INVALID_ARGUMENT`, ...).
 - Body fields allow placeholders similar to Testy runtime behavior.
+- Support for both HTTP and gRPC test steps (mutually exclusive per step).
 
 ## GoLand plugin
 

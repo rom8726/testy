@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package users;
+
+option go_package = "integration_test/userspb";
+
+import "userspb/common.proto";
+
+service UserService {
+  // Create a new user
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {}
+  
+  // Get user by ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {}
+  
+  // Update user
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse) {}
+  
+  // Delete user
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse) {}
+}
+
+service AdminService {
+  // Get all users (admin only)
+  rpc GetAllUsers(GetAllUsersRequest) returns (GetAllUsersResponse) {}
+}
+
+// Create user request
+message CreateUserRequest {
+  string name = 1;
+  string email = 2;
+  int32 age = 3;
+}
+
+// Create user response
+message CreateUserResponse {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  int32 age = 4;
+}
+
+// Get user request
+message GetUserRequest {
+  string id = 1;
+}
+
+// Get user response
+message GetUserResponse {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  int32 age = 4;
+}
+
+// Update user request
+message UpdateUserRequest {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+}
+
+// Update user response
+message UpdateUserResponse {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+}
+
+// Delete user request
+message DeleteUserRequest {
+  string id = 1;
+}
+
+// Delete user response
+message DeleteUserResponse {
+  bool success = 1;
+}
+
+// Get all users request
+message GetAllUsersRequest {
+}
+
+// Get all users response
+message GetAllUsersResponse {
+  repeated GetUserResponse users = 1;
+}

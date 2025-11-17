@@ -1,0 +1,142 @@
+- name: gRPC User Service Test
+  fixtures:
+    - users
+
+  variables:
+    defaultEmail: "test@example.com"
+
+  steps:
+    # Create a user via gRPC
+    - name: create_user
+      grpcRequest:
+        service: users.UserService
+        method: CreateUser
+        message:
+          name: "John Doe"
+          email: "{{defaultEmail}}"
+          age: 30
+        metadata:
+          authorization: "Bearer token123"
+          x-request-id: "{{UUID}}"
+      grpcResponse:
+        code: OK
+        message: |
+          {
+            "id": "<<PRESENCE>>",
+            "name": "John Doe",
+            "email": "test@example.com",
+            "age": 30
+          }
+      dbChecks:
+        - query: SELECT COUNT(*) as count FROM users WHERE email = 'test@example.com'
+          result: '[{"count": 1}]'
+
+    # Get user by ID
+    - name: get_user
+      grpcRequest:
+        service: users.UserService
+        method: GetUser
+        message:
+          id: "{{create_user.response.id}}"
+      grpcResponse:
+        code: OK
+        message: |
+          {
+            "id": "{{create_user.response.id}}",
+            "name": "John Doe",
+            "email": "test@example.com",
+            "age": 30
+          }
+
+    # Update user
+    - name: update_user
+      grpcRequest:
+        service: users.UserService
+        method: UpdateUser
+        message:
+          id: "{{create_user.response.id}}"
+          name: "Jane Doe"
+          email: "jane@example.com"
+      grpcResponse:
+        code: OK
+        message: |
+          {
+            "id": "{{create_user.response.id}}",
+            "name": "Jane Doe",
+            "email": "jane@example.com"
+          }
+        assertions:
+          - path: name
+            operator: eq
+            value: "Jane Doe"
+          - path: email
+            operator: contains
+            value: "jane"
+
+    # Test not found error
+    - name: get_nonexistent_user
+      grpcRequest:
+        service: users.UserService
+        method: GetUser
+        message:
+          id: "00000000-0000-0000-0000-000000000000"
+      grpcResponse:
+        code: NOT_FOUND
+
+    # Delete user
+    - name: delete_user
+      grpcRequest:
+        service: users.UserService
+        method: DeleteUser
+        message:
+          id: "{{create_user.response.id}}"
+      grpcResponse:
+        code: OK
+      dbChecks:
+        - query: SELECT COUNT(*) as count FROM users WHERE id = '{{create_user.response.id}}'
+          result: '[{"count": 0}]'
+
+    # Test with retry mechanism
+    - name: create_user_with_retry
+      retry:
+        maxAttempts: 3
+        backoff: exponential
+        initialDelay: 100ms
+        maxDelay: 1s
+        retryOnError: true
+      grpcRequest:
+        service: users.UserService
+        method: CreateUser
+        message:
+          name: "Retry User"
+          email: "retry@example.com"
+      grpcResponse:
+        code: OK
+      performance:
+        maxDuration: 2s
+
+    # Test with conditional execution
+    - name: admin_only_operation
+      when: "{{userRole}} == 'admin'"
+      grpcRequest:
+        service: users.AdminService
+        method: GetAllUsers
+        message: {}
+      grpcResponse:
+        code: OK
+
+    # Test with loop
+    - name: create_multiple_users
+      loop:
+        range:
+          from: 1
+          to: 3
+        var: userIndex
+      grpcRequest:
+        service: users.UserService
+        method: CreateUser
+        message:
+          name: "User {{userIndex}}"
+          email: "user{{userIndex}}@example.com"
+      grpcResponse:
+        code: OK
