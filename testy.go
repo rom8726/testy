@@ -41,6 +41,16 @@ func Run(t *testing.T, cfg *Config) {
 		mocks = cfg.MockManager.internalInstances()
 	}
 
+	if err := internal.ValidateTestCases(cases, internal.ValidationConfig{
+		CasesDir:    cfg.CasesDir,
+		FixturesDir: cfg.FixturesDir,
+		HasHandler:  cfg.Handler != nil,
+		GRPCAddr:    cfg.GRPCAddr,
+		Mocks:       mocks,
+	}); err != nil {
+		t.Fatalf("%+v", err)
+	}
+
 	results := make([]internal.TestCaseResult, 0, len(cases))
 
 	for _, tc := range cases {
