@@ -291,8 +291,10 @@ func performHTTPStep(
 		}
 	}
 
+	diagnosticStep := renderStepForDiagnostics(step, ctxMap)
+
 	// Assert response
-	AssertResponse(t, rec, *step.Response)
+	AssertStepResponse(t, diagnosticStep, rec, *step.Response)
 
 	// JSON Schema validation
 	if step.Response.JSONSchema != nil || step.Response.Schema != "" {
@@ -332,7 +334,7 @@ func performHTTPStep(
 				renderedAssertion := assertion
 				renderedAssertion.Value = RenderAny(assertion.Value, ctxMap)
 				if err := AssertResponseV2(renderedAssertion, responseData); err != nil {
-					t.Errorf("Assertion failed: %v", err)
+					t.Errorf("Assertion failed: %v\n%s", err, formatHTTPDiagnostic(diagnosticStep, rec))
 				}
 			}
 		}
@@ -342,7 +344,7 @@ func performHTTPStep(
 	if len(step.DBChecks) > 0 && db != nil {
 		for _, check := range step.DBChecks {
 			check = renderDBCheck(check, ctxMap)
-			ExecuteDBCheck(t, db, check)
+			ExecuteStepDBCheck(t, step.Name, db, check)
 		}
 	}
 
@@ -387,7 +389,8 @@ func performGRPCStep(
 	}
 
 	// Assert gRPC response
-	AssertGRPCResponse(t, response, *step.GRPCResponse, ctxMap)
+	diagnosticStep := renderStepForDiagnostics(step, ctxMap)
+	AssertStepGRPCResponse(t, diagnosticStep, response, *step.GRPCResponse, ctxMap)
 
 	// Enhanced assertions for gRPC
 	if len(step.GRPCResponse.Assertions) > 0 && response.Code == codes.OK {
@@ -403,7 +406,7 @@ func performGRPCStep(
 					renderedAssertion := assertion
 					renderedAssertion.Value = RenderAny(assertion.Value, ctxMap)
 					if err := AssertResponseV2(renderedAssertion, responseData); err != nil {
-						t.Errorf("Assertion failed: %v", err)
+						t.Errorf("Assertion failed: %v\n%s", err, formatGRPCDiagnostic(diagnosticStep, response))
 					}
 				}
 			}
@@ -414,7 +417,7 @@ func performGRPCStep(
 	if len(step.DBChecks) > 0 && db != nil {
 		for _, check := range step.DBChecks {
 			check = renderDBCheck(check, ctxMap)
-			ExecuteDBCheck(t, db, check)
+			ExecuteStepDBCheck(t, step.Name, db, check)
 		}
 	}
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kinbiko/jsonassert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -120,14 +119,28 @@ func AssertGRPCResponse(
 	ctxMap map[string]any,
 ) {
 	t.Helper()
+	AssertStepGRPCResponse(t, Step{}, response, expected, ctxMap)
+}
+
+// AssertStepGRPCResponse validates gRPC response and includes step context in failure diagnostics.
+func AssertStepGRPCResponse(
+	t *testing.T,
+	step Step,
+	response *GRPCResponse,
+	expected GRPCResponseSpec,
+	ctxMap map[string]any,
+) {
+	t.Helper()
 	const op = "AssertGRPCResponse"
 
 	// Check status code
 	expectedCode := parseGRPCCode(expected.Code)
 	if response.Code != expectedCode {
 		grpcErr := NewError(ErrGRPC, op, "unexpected gRPC status code").
+			WithContext("step", step.Name).
 			WithContext("expected", expected.Code).
-			WithContext("actual", response.Code.String())
+			WithContext("actual", response.Code.String()).
+			WithContext("!diagnostic", formatGRPCDiagnostic(step, response))
 		t.Fatalf("%+v", grpcErr)
 	}
 
@@ -149,9 +162,11 @@ func AssertGRPCResponse(
 			}
 			if !found {
 				grpcErr := NewError(ErrGRPC, op, "unexpected metadata value").
+					WithContext("step", step.Name).
 					WithContext("key", k).
 					WithContext("expected", v).
-					WithContext("actual", values)
+					WithContext("actual", values).
+					WithContext("!diagnostic", formatGRPCDiagnostic(step, response))
 				t.Fatalf("%+v", grpcErr)
 			}
 		}
@@ -163,6 +178,7 @@ func AssertGRPCResponse(
 		jsonBytes, err := protojson.Marshal(response.Message)
 		if err != nil {
 			grpcErr := NewError(ErrGRPC, op, "failed to marshal response to JSON").
+				WithContext("step", step.Name).
 				WithContext("error", err.Error())
 			t.Fatalf("%+v", grpcErr)
 		}
@@ -171,8 +187,13 @@ func AssertGRPCResponse(
 		renderedExpected := RenderTemplate(expected.Message, ctxMap)
 
 		// Assert JSON
-		ja := jsonassert.New(t)
-		ja.Assert(string(jsonBytes), renderedExpected)
+		assertJSONWithDiagnostic(
+			t,
+			string(jsonBytes),
+			renderedExpected,
+			"gRPC response assertion context",
+			formatGRPCDiagnostic(step, response),
+		)
 	}
 }
 

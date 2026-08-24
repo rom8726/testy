@@ -9,8 +9,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/kinbiko/jsonassert"
 )
 
 // ExecuteRequest performs an HTTP request with full rendering support
@@ -56,9 +54,20 @@ func ExecuteRequest(t *testing.T, step Step, handler http.Handler, ctxMap map[st
 	return rec
 }
 
-// AssertResponse checks HTTP response with legacy JSON assertion
+// AssertResponse checks HTTP response with legacy JSON assertion.
 func AssertResponse(
 	t *testing.T,
+	respRecorder *httptest.ResponseRecorder,
+	expected ResponseSpec,
+) {
+	t.Helper()
+	AssertStepResponse(t, Step{}, respRecorder, expected)
+}
+
+// AssertStepResponse checks HTTP response and includes step/request context in failure diagnostics.
+func AssertStepResponse(
+	t *testing.T,
+	step Step,
 	respRecorder *httptest.ResponseRecorder,
 	expected ResponseSpec,
 ) {
@@ -75,8 +84,10 @@ func AssertResponse(
 				!strings.Contains(recordedHeader, expectedHeader) &&
 				!strings.Contains(expectedHeader, recordedHeader) {
 				httpErr := NewError(ErrHTTP, op, "unexpected response header").
+					WithContext("step", step.Name).
 					WithContext("expected", v).
-					WithContext("actual", respRecorder.Header().Get(k))
+					WithContext("actual", respRecorder.Header().Get(k)).
+					WithContext("!diagnostic", formatHTTPDiagnostic(step, respRecorder))
 				t.Fatalf("%+v", httpErr)
 			}
 		}
@@ -87,22 +98,29 @@ func AssertResponse(
 	// Check status code
 	if respRecorder.Result().StatusCode != expected.Status {
 		httpErr := NewError(ErrHTTP, op, "unexpected status code").
+			WithContext("step", step.Name).
 			WithContext("expected", expected.Status).
 			WithContext("actual", respRecorder.Result().StatusCode).
-			WithContext("!body", strings.ReplaceAll(body, "\n", " "))
+			WithContext("!diagnostic", formatHTTPDiagnostic(step, respRecorder))
 		t.Fatalf("%+v", httpErr)
 	}
 
 	// Check JSON (legacy format)
 	if expected.JSON != "" {
-		ja := jsonassert.New(t)
-		ja.Assert(body, expected.JSON)
-		// Note: jsonassert.Assert calls t.Error internally if assertion fails
+		assertJSONWithDiagnostic(
+			t,
+			body,
+			expected.JSON,
+			"HTTP response assertion context",
+			formatHTTPDiagnostic(step, respRecorder),
+		)
 	} else if expected.Text != "" {
 		if body != expected.Text {
 			httpErr := NewError(ErrHTTP, op, "unexpected response body").
+				WithContext("step", step.Name).
 				WithContext("expected", expected.Text).
-				WithContext("actual", body)
+				WithContext("actual", body).
+				WithContext("!diagnostic", formatHTTPDiagnostic(step, respRecorder))
 			t.Fatalf("%+v", httpErr)
 		}
 	}

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kinbiko/jsonassert"
 	_ "github.com/lib/pq"
 	"github.com/rom8726/pgfixtures"
 )
@@ -60,18 +59,25 @@ func ExecuteDBChecks(t *testing.T, connStr string, step Step, ctxMap map[string]
 
 	for _, check := range step.DBChecks {
 		check = renderDBCheck(check, ctxMap)
-		ExecuteDBCheck(t, db, check)
+		ExecuteStepDBCheck(t, step.Name, db, check)
 	}
 }
 
 // ExecuteDBCheck executes a single database check
 func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 	t.Helper()
+	ExecuteStepDBCheck(t, "", db, check)
+}
+
+// ExecuteStepDBCheck executes a single database check with step context for diagnostics.
+func ExecuteStepDBCheck(t *testing.T, stepName string, db *sql.DB, check DBCheck) {
+	t.Helper()
 	const op = "ExecuteDBCheck"
 
 	rows, err := db.QueryContext(t.Context(), check.Query)
 	if err != nil {
 		dbErr := NewError(ErrDatabase, op, "failed to execute database query").
+			WithContext("step", stepName).
 			WithContext("query", check.Query).
 			WithContext("error", err.Error())
 		t.Fatalf("%+v", dbErr)
@@ -110,6 +116,7 @@ func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 	actual, err := json.Marshal(results)
 	if err != nil {
 		dbErr := NewError(ErrInternal, op, "failed to marshal query results").
+			WithContext("step", stepName).
 			WithContext("error", err.Error())
 		t.Fatalf("%+v", dbErr)
 	}
@@ -122,6 +129,7 @@ func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 		buf, err := json.Marshal(v)
 		if err != nil {
 			dbErr := NewError(ErrInternal, op, "failed to marshal expected results").
+				WithContext("step", stepName).
 				WithContext("error", err.Error())
 			t.Fatalf("%+v", dbErr)
 		}
@@ -129,6 +137,11 @@ func ExecuteDBCheck(t *testing.T, db *sql.DB, check DBCheck) {
 		expectedJSON = string(buf)
 	}
 
-	ja := jsonassert.New(t)
-	ja.Assert(string(actual), expectedJSON)
+	assertJSONWithDiagnostic(
+		t,
+		string(actual),
+		expectedJSON,
+		"Database check assertion context",
+		formatDBDiagnostic(stepName, check, string(actual)),
+	)
 }
